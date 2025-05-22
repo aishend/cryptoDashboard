@@ -3,8 +3,9 @@ import pandas as pd
 import pandas_ta as ta
 import matplotlib.pyplot as plt
 import logging
-import time
+import json
 from datetime import datetime, timedelta
+import os
 
 from analysis import analyze_timeframe
 from trading_pairs import TRADING_PAIRS
@@ -12,22 +13,12 @@ from trading_pairs import TRADING_PAIRS
 logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(layout="wide")
-
-# Auto-refresh JavaScript
-st.markdown("""
-<script>
-setTimeout(function(){
-    window.location.reload(1);
-}, 1800000); // 30 minutos
-</script>
-""", unsafe_allow_html=True)
-
 st.title("Varredura Interativa de Pares – Apenas Stochastic (1h & 4h)")
 st.markdown("Dev by aishend feat chatgpt — versão só Stochastic 5-3-3 & 14-3-3 ☕️")
 
 
 # ------------------------------------------------------------
-# Função tradicional de cálculo (para verificação)
+# Funções originais
 # ------------------------------------------------------------
 def calc_stochastic_indicator(df, periodK, smoothK, periodD):
     lowest_low = df['Low'].rolling(window=periodK).min()
@@ -38,9 +29,6 @@ def calc_stochastic_indicator(df, periodK, smoothK, periodD):
     return stoch_K, stoch_D
 
 
-# ------------------------------------------------------------
-# Utilidades pandas_ta
-# ------------------------------------------------------------
 def _calc_stoch(df: pd.DataFrame, k: int, d: int, smooth_k: int, label_prefix: str):
     if not all(col in df.columns for col in ["High", "Low", "Close"]):
         raise KeyError(f"DataFrame sem colunas necessárias, colunas: {df.columns.tolist()}")
@@ -49,9 +37,6 @@ def _calc_stoch(df: pd.DataFrame, k: int, d: int, smooth_k: int, label_prefix: s
     return df
 
 
-# ------------------------------------------------------------
-# Varredura dos pares
-# ------------------------------------------------------------
 def scan_pairs():
     valid_rows = []
     failed_pairs = []
@@ -62,10 +47,11 @@ def scan_pairs():
             if df_1h.empty or df_4h.empty:
                 failed_pairs.append(symbol)
                 continue
-            # calcula stoch
+
             for df, tf in ((df_1h, "1h"), (df_4h, "4h")):
                 _calc_stoch(df, 5, 3, 3, f"{tf}_5")
                 _calc_stoch(df, 14, 3, 3, f"{tf}_14")
+
             last_1h = df_1h.iloc[-1]
             last_4h = df_4h.iloc[-1]
             valid_rows.append({
@@ -82,16 +68,70 @@ def scan_pairs():
 
 
 # ------------------------------------------------------------
-# Cache
+# Funções de cache com arquivo JSON
 # ------------------------------------------------------------
-@st.cache_data(show_spinner=True, ttl=1800)
+def save_data_to_file(df_valid, failed):
+    """Salva dados em arquivo JSON"""
+    data = {
+        'df_valid': df_valid.to_dict('records') if not df_valid.empty else [],
+        'failed': failed,
+        'last_update': datetime.now().isoformat()
+    }
+
+    with open('crypto_data.json', 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def load_data_from_file():
+    """Carrega dados do arquivo JSON"""
+    try:
+        if os.path.exists('crypto_data.json'):
+            with open('crypto_data.json', 'r') as f:
+                data = json.load(f)
+
+            df_valid = pd.DataFrame(data['df_valid']) if data['df_valid'] else pd.DataFrame()
+            failed = data['failed']
+            last_update = datetime.fromisoformat(data['last_update'])
+
+            return df_valid, failed, last_update
+        else:
+            # Se arquivo não existe, criar dados iniciais
+            return pd.DataFrame(), [], datetime.now()
+    except Exception as e:
+        logging.error(f"Erro ao carregar dados: {e}")
+        return pd.DataFrame(), [], datetime.now()
+
+
+@st.cache_data(ttl=60)  # Cache por 1 minuto
 def get_scan_results():
-    df_valid, failed = scan_pairs()
-    return df_valid, failed, datetime.now()
+    """Carrega dados do arquivo ou busca novos se necessário"""
+    df_valid, failed, last_update = load_data_from_file()
+
+    # Se dados são muito antigos (mais de 35 minutos), buscar novos
+    if (datetime.now() - last_update).total_seconds() > 2100:
+        try:
+            df_valid, failed = scan_pairs()
+            save_data_to_file(df_valid, failed)
+            last_update = datetime.now()
+        except Exception as e:
+            logging.error(f"Erro ao buscar novos dados: {e}")
+
+    return df_valid, failed, last_update
+
+
+def force_update():
+    """Força atualização dos dados"""
+    try:
+        df_valid, failed = scan_pairs()
+        save_data_to_file(df_valid, failed)
+        return df_valid, failed, datetime.now()
+    except Exception as e:
+        logging.error(f"Erro na atualização forçada: {e}")
+        return load_data_from_file()
 
 
 # ------------------------------------------------------------
-# Obter resultados e configurar cronômetro
+# Obter dados
 # ------------------------------------------------------------
 df_valid, failed, last_update_time = get_scan_results()
 
@@ -100,88 +140,73 @@ next_update = last_update_time + timedelta(seconds=1800)  # 30 minutos
 time_remaining = next_update - datetime.now()
 
 # ------------------------------------------------------------
-# SIDEBAR COMPLETA
+# Sidebar
 # ------------------------------------------------------------
-with st.sidebar:
-    # Status de atualização
-    st.header("⏱️ Status de Atualização")
-    st.info(f"Última atualização: {last_update_time.strftime('%H:%M:%S')}")
+st.sidebar.header("⏱️ Status")
+st.sidebar.info(f"Última atualização: {last_update_time.strftime('%H:%M:%S')}")
 
-    if time_remaining.total_seconds() > 0:
-        minutes_remaining = int(time_remaining.total_seconds() // 60)
-        seconds_remaining = int(time_remaining.total_seconds() % 60)
-        st.success(f"⏳ Próxima atualização em: **{minutes_remaining:02d}:{seconds_remaining:02d}**")
+if time_remaining.total_seconds() > 0:
+    minutes = int(time_remaining.total_seconds() // 60)
+    seconds = int(time_remaining.total_seconds() % 60)
+    st.sidebar.success(f"Próxima atualização em: {minutes:02d}:{seconds:02d}")
+else:
+    st.sidebar.warning("Atualização pendente...")
 
-        # Barra de progresso
-        progress = 1 - (time_remaining.total_seconds() / 1800)
-        st.progress(progress)
-    else:
-        st.warning("🔄 Atualização pendente...")
-
-    # Botão de atualização manual
-    if st.button("🔄 Atualizar Agora", type="primary"):
+# Botões de controle
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    if st.button("🔄 Atualizar"):
+        df_valid, failed, last_update_time = force_update()
         get_scan_results.clear()
         st.rerun()
 
-    st.divider()
+with col2:
+    if st.button("📊 Recarregar"):
+        get_scan_results.clear()
+        st.rerun()
 
-    # Visualização
-    st.header("📈 Visualizar Stochastic Histórico")
-    symbol_plot = st.selectbox("Selecione par:", TRADING_PAIRS)
+st.sidebar.divider()
 
-    st.divider()
+# Escolha de símbolo
+st.sidebar.header("📈 Visualização")
+symbol_plot = st.sidebar.selectbox("Selecione par:", TRADING_PAIRS)
 
-    # Filtros Stochastic
-    st.header("🎛️ Filtros Stochastic")
-    filters = {}
+st.sidebar.divider()
 
-    for col_key, col_label in [
-        ("1h Stoch 5-3-3", "1h 5-3-3"),
-        ("1h Stoch 14-3-3", "1h 14-3-3"),
-        ("4h Stoch 5-3-3", "4h 5-3-3"),
-        ("4h Stoch 14-3-3", "4h 14-3-3"),
-    ]:
-        st.markdown(f"**{col_label}**")
+# ------------------------------------------------------------
+# Filtros
+# ------------------------------------------------------------
+st.sidebar.header("🎛️ Filtros Stochastic")
+filters = {}
 
-        # Usar chaves únicas sem caracteres especiais
-        safe_key = col_key.replace(" ", "_").replace("-", "_")
+for col_key, col_label in [
+    ("1h Stoch 5-3-3", "1h 5-3-3"),
+    ("1h Stoch 14-3-3", "1h 14-3-3"),
+    ("4h Stoch 5-3-3", "4h 5-3-3"),
+    ("4h Stoch 14-3-3", "4h 14-3-3"),
+]:
+    use_filter = st.sidebar.checkbox(f"Filtrar {col_label}", key=f"use_{col_key}")
 
-        mode = st.selectbox(
-            "Tipo de filtro:",
-            ["Nenhum", "Inferior", "Superior", "Ambos"],
-            key=f"mode_{safe_key}"
+    if use_filter:
+        filter_type = st.sidebar.radio(
+            f"{col_label}:",
+            ["Inferior", "Superior", "Ambos"],
+            key=f"type_{col_key}"
         )
 
-        low = None
-        up = None
+        if filter_type in ["Inferior", "Ambos"]:
+            low = st.sidebar.number_input(f"{col_label} – Inferior", 0, 100, 30, key=f"low_{col_key}")
+        else:
+            low = None
 
-        if mode in ["Inferior", "Ambos"]:
-            low = st.number_input(
-                f"Valor Inferior",
-                0, 100, 30,
-                key=f"low_{safe_key}"
-            )
+        if filter_type in ["Superior", "Ambos"]:
+            up = st.sidebar.number_input(f"{col_label} – Superior", 0, 100, 70, key=f"up_{col_key}")
+        else:
+            up = None
 
-        if mode in ["Superior", "Ambos"]:
-            up = st.number_input(
-                f"Valor Superior",
-                0, 100, 70,
-                key=f"up_{safe_key}"
-            )
-
-        filters[col_key] = (mode, low, up)
-        st.write("")  # Espaçamento
-
-# ------------------------------------------------------------
-# Debug e exibição de dados
-# ------------------------------------------------------------
-st.write("🔍 **Debug Info:**")
-st.write(f"- Pares válidos: {len(df_valid)}")
-st.write(f"- Pares com erro: {len(failed)}")
-
-if not df_valid.empty:
-    st.write("- Primeiros dados:")
-    st.dataframe(df_valid.head())
+        filters[col_key] = (filter_type, low, up)
+    else:
+        filters[col_key] = ("Nenhum", None, None)
 
 # ------------------------------------------------------------
 # Aplicar filtros
@@ -191,40 +216,29 @@ df_filtered = df_valid.copy()
 for column, (mode, low, up) in filters.items():
     if mode == "Inferior" and low is not None:
         df_filtered = df_filtered[df_filtered[column] < low]
-        st.write(f"Filtro aplicado: {column} < {low}")
     elif mode == "Superior" and up is not None:
         df_filtered = df_filtered[df_filtered[column] > up]
-        st.write(f"Filtro aplicado: {column} > {up}")
     elif mode == "Ambos" and low is not None and up is not None:
         df_filtered = df_filtered[(df_filtered[column] < low) | (df_filtered[column] > up)]
-        st.write(f"Filtro aplicado: {column} < {low} OU > {up}")
-
-st.write(f"📊 **Dados após filtros: {len(df_filtered)} pares**")
 
 # ------------------------------------------------------------
-# Exibição de resultados
+# Exibir resultados
 # ------------------------------------------------------------
 if df_filtered.empty:
     if df_valid.empty:
-        st.error("❌ Nenhum dado foi carregado. Verifique a conexão com a API.")
+        st.error("❌ Nenhum dado disponível. Clique em 'Atualizar' para buscar dados.")
     else:
         st.warning("⚠️ Nenhum par atende aos filtros aplicados.")
-        st.write("Dados disponíveis antes dos filtros:")
-        st.dataframe(df_valid, use_container_width=True)
 else:
-    st.subheader("✅ Pares Filtrados")
-    st.dataframe(df_filtered, use_container_width=True)
+    st.subheader(f"✅ Pares Filtrados ({len(df_filtered)} de {len(df_valid)})")
+    st.table(df_filtered)
 
-# Mostrar erros se houver
 if failed:
-    st.subheader("❌ Erros ao carregar")
-    st.error(f"Falha ao carregar {len(failed)} pares:")
-    for s in failed:
-        st.write(f"- {s}")
+    with st.expander(f"❌ Erros ao carregar ({len(failed)} pares)"):
+        for s in failed:
+            st.write(f"- {s}")
 
-# ------------------------------------------------------------
-# Auto-rerun para cronômetro (a cada 5 segundos)
-# ------------------------------------------------------------
-if time_remaining.total_seconds() > 0:
-    time.sleep(5)
-    st.rerun()
+# Status dos dados
+st.sidebar.markdown("---")
+st.sidebar.caption(f"📊 {len(df_valid)} pares carregados")
+st.sidebar.caption(f"❌ {len(failed)} com erro")
