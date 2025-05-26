@@ -110,7 +110,7 @@ if ativar_4h_abaixo:
 
 # ----------------- Ordenação pelo MACD zero lag 4h -----------------
 if "4h_macd_zero_lag_hist" in df_filtered.columns:
-    df_filtered = df_filtered.reindex(df_filtered["4h_macd_zero_lag_hist"].abs().sort_values().index)
+    df_filtered = df_filtered.loc[df_filtered["4h_macd_zero_lag_hist"].abs().sort_values().index].reset_index(drop=True)
 
 # ----------------- Exibir Resultados -----------------
 if df_filtered.empty:

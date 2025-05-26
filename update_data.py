@@ -4,8 +4,8 @@ import json
 import logging
 from datetime import datetime
 from analysis import analyze_timeframe
-# from trading_pairs import TRADING_PAIRS
-from trading_pairs22 import TRADING_PAIRS
+from trading_pairs import TRADING_PAIRS
+from indicators import calc_macd_zero_lag
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
@@ -22,16 +22,15 @@ def scan_pairs():
     failed_pairs = []
     for symbol in TRADING_PAIRS:
         try:
-            # Usar '15m', '1h', '4h' conforme documentação oficial da Binance[1]
             df_15m = analyze_timeframe(symbol, "15m", "1 day ago UTC")
             df_1h = analyze_timeframe(symbol, "1h", "7 day ago UTC")
             df_4h = analyze_timeframe(symbol, "4h", "30 day ago UTC")
-            # Se algum dos principais timeframes estiver vazio, pula o par
             if df_1h.empty or df_4h.empty:
                 failed_pairs.append(symbol)
                 continue
+
             result_data = {"Symbol": symbol}
-            # 15m só adiciona se não estiver vazio
+
             if not df_15m.empty:
                 _calc_stoch(df_15m, 5, 3, 3, "15m_5")
                 _calc_stoch(df_15m, 14, 3, 3, "15m_14")
@@ -40,9 +39,11 @@ def scan_pairs():
                     "15m Stoch 5-3-3": round(last_15m["15m_5_stoch_5"], 2),
                     "15m Stoch 14-3-3": round(last_15m["15m_14_stoch_14"], 2),
                 })
+
             for df, tf in ((df_1h, "1h"), (df_4h, "4h")):
                 _calc_stoch(df, 5, 3, 3, f"{tf}_5")
                 _calc_stoch(df, 14, 3, 3, f"{tf}_14")
+
             last_1h = df_1h.iloc[-1]
             last_4h = df_4h.iloc[-1]
             result_data.update({
@@ -51,6 +52,11 @@ def scan_pairs():
                 "4h Stoch 5-3-3": round(last_4h["4h_5_stoch_5"], 2),
                 "4h Stoch 14-3-3": round(last_4h["4h_14_stoch_14"], 2),
             })
+
+            # Calcular e salvar o MACD zero lag histograma de 4h
+            macd_line, signal_line, macd_hist = calc_macd_zero_lag(df_4h['Close'])
+            result_data["4h_macd_zero_lag_hist"] = round(macd_hist.iloc[-1], 6)
+
             valid_rows.append(result_data)
         except Exception as exc:
             logging.warning(f"Falha ao processar {symbol}: {exc}")
@@ -61,7 +67,6 @@ def update_data():
     print(f"🔄 Atualizando dados: {datetime.now()}")
     try:
         df_valid, failed = scan_pairs()
-        # Caminho seguro para o arquivo JSON no mesmo diretório do script
         json_path = Path(__file__).parent / "crypto_data.json"
         data = {
             'df_valid': df_valid.to_dict('records') if not df_valid.empty else [],
