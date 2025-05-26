@@ -1,5 +1,5 @@
 from binance_client import get_futures_balance, get_futures_open_orders, get_futures_positions
-from trading_pairs1 import TRADING_PAIRS
+from trading_pairs import TRADING_PAIRS
 
 def monitor_futures(symbol=None):
     if symbol is None:

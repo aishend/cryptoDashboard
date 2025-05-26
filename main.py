@@ -1,7 +1,7 @@
 import concurrent.futures
 import logging
 from binance_client import get_futures_positions
-from trading_pairs1 import TRADING_PAIRS
+from trading_pairs import TRADING_PAIRS
 
 # Configuração básica de logging para debug
 logging.basicConfig(
