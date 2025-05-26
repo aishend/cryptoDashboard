@@ -68,9 +68,9 @@ st.sidebar.divider()
 st.sidebar.header("Filtros Especiais Rápidos")
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    ativar_4h_acima = st.button("4h acima + 3 acima")
+    ativar_4h_acima = st.button("4h acima + 2 acima")
 with col2:
-    ativar_4h_abaixo = st.button("4h abaixo + 3 abaixo")
+    ativar_4h_abaixo = st.button("4h abaixo + 2 abaixo")
 
 # ----------------- Aplicar Filtros -----------------
 df_filtered = df_valid.copy()
@@ -90,23 +90,27 @@ if enable_below and value_below is not None:
         df_filtered = df_filtered[df_filtered[col] <= value_below]
     st.sidebar.success(f"Filtro ativo: Todos ≤ {value_below}")
 
-# Filtro especial: 4h acima + 3 acima
+# Filtro especial: 4h acima + 2 acima
 if ativar_4h_acima:
     value_4h = st.sidebar.number_input("Valor mínimo para 4h (acima)", 0, 100, 70, key="4h_acima")
-    value_3 = st.sidebar.number_input("Valor mínimo para 3 outros (acima)", 0, 100, 70, key="3_acima")
+    value_2 = st.sidebar.number_input("Valor mínimo para 2 outros (acima)", 0, 100, 70, key="2_acima")
     mask_4h = df_filtered[stoch_4h_columns].ge(value_4h).all(axis=1)
-    mask_others = df_filtered[other_stoch_columns].ge(value_3).sum(axis=1) >= 3
+    mask_others = df_filtered[other_stoch_columns].ge(value_2).sum(axis=1) >= 2
     df_filtered = df_filtered[mask_4h & mask_others]
-    st.sidebar.success(f"Filtro especial: 4h ≥ {value_4h} e pelo menos 3 outros ≥ {value_3}")
+    st.sidebar.success(f"Filtro especial: 4h ≥ {value_4h} e pelo menos 2 outros ≥ {value_2}")
 
-# Filtro especial: 4h abaixo + 3 abaixo
+# Filtro especial: 4h abaixo + 2 abaixo
 if ativar_4h_abaixo:
     value_4h = st.sidebar.number_input("Valor máximo para 4h (abaixo)", 0, 100, 30, key="4h_abaixo")
-    value_3 = st.sidebar.number_input("Valor máximo para 3 outros (abaixo)", 0, 100, 30, key="3_abaixo")
+    value_2 = st.sidebar.number_input("Valor máximo para 2 outros (abaixo)", 0, 100, 30, key="2_abaixo")
     mask_4h = df_filtered[stoch_4h_columns].le(value_4h).all(axis=1)
-    mask_others = df_filtered[other_stoch_columns].le(value_3).sum(axis=1) >= 3
+    mask_others = df_filtered[other_stoch_columns].le(value_2).sum(axis=1) >= 2
     df_filtered = df_filtered[mask_4h & mask_others]
-    st.sidebar.success(f"Filtro especial: 4h ≤ {value_4h} e pelo menos 3 outros ≤ {value_3}")
+    st.sidebar.success(f"Filtro especial: 4h ≤ {value_4h} e pelo menos 2 outros ≤ {value_2}")
+
+# ----------------- Ordenação pelo MACD zero lag 4h -----------------
+if "4h_macd_zero_lag_hist" in df_filtered.columns:
+    df_filtered = df_filtered.reindex(df_filtered["4h_macd_zero_lag_hist"].abs().sort_values().index)
 
 # ----------------- Exibir Resultados -----------------
 if df_filtered.empty:
