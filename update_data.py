@@ -25,7 +25,9 @@ def scan_pairs():
             df_15m = analyze_timeframe(symbol, "15m", "1 day ago UTC")
             df_1h = analyze_timeframe(symbol, "1h", "7 day ago UTC")
             df_4h = analyze_timeframe(symbol, "4h", "30 day ago UTC")
-            if df_1h.empty or df_4h.empty:
+            df_1d = analyze_timeframe(symbol, "1d", "180 day ago UTC")  # Novo: timeframe diário
+
+            if df_1h.empty or df_4h.empty or df_1d.empty:
                 failed_pairs.append(symbol)
                 continue
 
@@ -40,22 +42,26 @@ def scan_pairs():
                     "15m Stoch 14-3-3": round(last_15m["15m_14_stoch_14"], 2),
                 })
 
-            for df, tf in ((df_1h, "1h"), (df_4h, "4h")):
+            for df, tf in ((df_1h, "1h"), (df_4h, "4h"), (df_1d, "1d")):
                 _calc_stoch(df, 5, 3, 3, f"{tf}_5")
                 _calc_stoch(df, 14, 3, 3, f"{tf}_14")
 
             last_1h = df_1h.iloc[-1]
             last_4h = df_4h.iloc[-1]
+            last_1d = df_1d.iloc[-1]
             result_data.update({
                 "1h Stoch 5-3-3": round(last_1h["1h_5_stoch_5"], 2),
                 "1h Stoch 14-3-3": round(last_1h["1h_14_stoch_14"], 2),
                 "4h Stoch 5-3-3": round(last_4h["4h_5_stoch_5"], 2),
                 "4h Stoch 14-3-3": round(last_4h["4h_14_stoch_14"], 2),
+                "1d Stoch 5-3-3": round(last_1d["1d_5_stoch_5"], 2),
+                "1d Stoch 14-3-3": round(last_1d["1d_14_stoch_14"], 2),
             })
 
-            # Calcular e salvar o MACD zero lag histograma de 4h
-            macd_line, signal_line, macd_hist = calc_macd_zero_lag(df_1h['Close'])
-            result_data["1h_macd_zero_lag_hist"] = round(macd_hist.iloc[-1], 6)
+            # Calcular e salvar o MACD zero lag histograma de cada timeframe
+            for tf, df in [("1h", df_1h), ("4h", df_4h), ("1d", df_1d)]:
+                macd_line, signal_line, macd_hist = calc_macd_zero_lag(df['Close'])
+                result_data[f"{tf}_macd_zero_lag_hist"] = round(macd_hist.iloc[-1], 6)
 
             valid_rows.append(result_data)
         except Exception as exc:
