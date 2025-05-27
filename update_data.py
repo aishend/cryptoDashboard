@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime
 from analysis import analyze_timeframe
-from trading_pairs import TRADING_PAIRS
+from trading_pairs22 import TRADING_PAIRS
 from indicators import calc_macd_zero_lag
 from pathlib import Path
 
