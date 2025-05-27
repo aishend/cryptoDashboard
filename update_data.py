@@ -54,8 +54,8 @@ def scan_pairs():
             })
 
             # Calcular e salvar o MACD zero lag histograma de 4h
-            macd_line, signal_line, macd_hist = calc_macd_zero_lag(df_4h['Close'])
-            result_data["4h_macd_zero_lag_hist"] = round(macd_hist.iloc[-1], 6)
+            macd_line, signal_line, macd_hist = calc_macd_zero_lag(df_1h['Close'])
+            result_data["1h_macd_zero_lag_hist"] = round(macd_hist.iloc[-1], 6)
 
             valid_rows.append(result_data)
         except Exception as exc:
