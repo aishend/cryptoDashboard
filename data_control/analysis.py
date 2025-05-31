@@ -10,7 +10,6 @@ except ImportError:
 
 def analyze_timeframe(symbol, interval, lookback, prefix=""):
     df = get_klines_with_cache(symbol, interval, lookback)
-    print(df.head())
     
     if df.empty:
         print("DataFrame vazio após get_klines_with_cache.")
