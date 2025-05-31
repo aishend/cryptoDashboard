@@ -8,6 +8,8 @@ import numpy as np
 import sys
 import subprocess
 
+st.set_page_config(layout="wide")
+
 def safe_run_update(script_path):
     try:
         result = subprocess.run(
@@ -25,7 +27,7 @@ def safe_run_update(script_path):
 safe_run_update("trading_pairs/update_trading_pairs.py")
 safe_run_update("data_control/update_data.py")
 
-st.set_page_config(layout="wide")
+
 
 count = st_autorefresh(interval=300000, key="filecheck")
 
