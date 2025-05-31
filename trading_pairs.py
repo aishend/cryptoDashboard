@@ -1,0 +1,3 @@
+TRADING_PAIRS = [
+    "btcusdt"
+]
