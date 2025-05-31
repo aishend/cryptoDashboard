@@ -10,8 +10,8 @@ st.set_page_config(layout="wide")
 # Auto-refresh a cada 5 minutos para verificar arquivo
 count = st_autorefresh(interval=300000, key="filecheck")
 
-st.title("Varredura Interativa de Pares – Stochastic (15m, 1h, 4h & 1d)")
-st.markdown("Dev by aishend feat chatgpt — versão Stochastic 5-3-3 & 14-3-3 ☕️")
+st.title("📊 Dashboard Crypto Filtering")
+st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
 @st.cache_data(ttl=60)
 def load_data_from_file():
