@@ -2,7 +2,9 @@
 binance_client/config.py
 data_control/cache/*
 data_control/crypto_data.json
-PyCharmMiscProject.iml
+# Ignorar arquivos do PyCharm
+.idea/
+*.iml
 trading_pairs/trading_pairs.py
 trading_pairs/trading_pairs22.py
 __pycache__/*
