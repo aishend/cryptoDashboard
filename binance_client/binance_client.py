@@ -99,6 +99,16 @@ def get_futures_balance():
         logging.error(f"Erro ao buscar saldo de Futures: {e}")
         return pd.DataFrame()
 
+def get_futures_pairs():
+    info = client.futures_exchange_info()
+    # Pega apenas símbolos de contratos perpétuos ativos (os mais comuns)
+    pairs = [
+        s['symbol']
+        for s in info['symbols']
+        if s['status'] == 'TRADING' and s['contractType'] == 'PERPETUAL'
+    ]
+    return sorted(pairs)
+
 # --- Websocket de Kline para futuros ---
 
 # Dicionário global para armazenar dados de kline em tempo real
