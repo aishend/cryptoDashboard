@@ -8,7 +8,6 @@ import numpy as np
 
 st.set_page_config(layout="wide")
 
-# Auto-refresh a cada 5 minutos para verificar arquivo
 count = st_autorefresh(interval=300000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
@@ -30,10 +29,8 @@ def load_data_from_file():
         st.error(f"Erro ao carregar dados: {e}")
         return pd.DataFrame(), [], datetime.now(), False
 
-# Carregar dados
 df_valid, failed, last_update_time, file_exists = load_data_from_file()
 
-# Sidebar
 if file_exists:
     st.sidebar.success(f"✅ Dados carregados: {last_update_time.strftime('%H:%M:%S')}")
     time_diff = datetime.now() - last_update_time
@@ -82,7 +79,7 @@ st.sidebar.divider()
 # ----------------- Filtro para escolher timeframe do sort MACD zero lag -----------------
 macd_timeframes = [
     tf for tf in ["15m", "1h", "4h", "1d"]
-    if f"{tf}_macd_zero_lag_hist" in df_valid.columns and f"{tf}_Close" in df_valid.columns
+    if f"{tf}_macd_zero_lag_hist" in df_valid.columns and f"{tf}_macd_zero_lag_hist_min" in df_valid.columns and f"{tf}_macd_zero_lag_hist_max" in df_valid.columns and f"{tf}_Close" in df_valid.columns
 ]
 default_sort_tf = "4h" if "4h" in macd_timeframes else (macd_timeframes[0] if macd_timeframes else None)
 sort_tf = st.sidebar.selectbox(
@@ -94,36 +91,38 @@ sort_tf = st.sidebar.selectbox(
 # ----------------- Aplicar Filtros Stochastic -----------------
 df_filtered = df_valid.copy()
 
-# Pega as colunas dos timeframes selecionados
 selected_stoch_columns = []
 for tf in selected_timeframes:
     selected_stoch_columns += [col for col in df_valid.columns if col.startswith(f"{tf} Stoch")]
 
-# Filtro "Todos acima"
 if enable_above and value_above is not None and selected_stoch_columns:
     for col in selected_stoch_columns:
         df_filtered = df_filtered[df_filtered[col] >= value_above]
     st.sidebar.success(f"Filtro ativo: Todos os selecionados ≥ {value_above}")
 
-# Filtro "Todos abaixo"
 if enable_below and value_below is not None and selected_stoch_columns:
     for col in selected_stoch_columns:
         df_filtered = df_filtered[df_filtered[col] <= value_below]
     st.sidebar.success(f"Filtro ativo: Todos os selecionados ≤ {value_below}")
 
-# ----------------- Ordenação e coluna final MACD zero lag normalizado -----------------
+# ----------------- Ordenação e coluna final MACD zero lag normalizado (usando min/max do histograma de cada par) -----------------
 if sort_tf:
     hist_col = f"{sort_tf}_macd_zero_lag_hist"
-    close_col = f"{sort_tf}_Close"
+    min_col = f"{sort_tf}_macd_zero_lag_hist_min"
+    max_col = f"{sort_tf}_macd_zero_lag_hist_max"
     norm_col = f"MACD0lag_norm_{sort_tf}"
-    # Normalização para [-1, 1] e depois para [0, 100] com 0 (cruzamento) = 50
-    hist_vals = df_filtered[hist_col].values
-    max_abs = np.max(np.abs(hist_vals)) if len(hist_vals) > 0 else 1
-    # Evita divisão por zero
-    norm_vals = 50 + 50 * (hist_vals / max_abs)
-    df_filtered[norm_col] = norm_vals
-    # Ordena os pares pelo valor mais próximo de 50 (cruzamento)
-    df_filtered = df_filtered.loc[(np.abs(df_filtered[norm_col] - 50)).sort_values().index].reset_index(drop=True)
+
+    # Normaliza cada par usando seu próprio min/max histórico
+    df_filtered[norm_col] = (
+        (df_filtered[hist_col] - df_filtered[min_col]) / (df_filtered[max_col] - df_filtered[min_col] + 1e-9)
+    )
+    # Posição do zero no range
+    zero_pos = (0 - df_filtered[min_col]) / (df_filtered[max_col] - df_filtered[min_col] + 1e-9)
+    # Ajusta para que zero fique em 50
+    df_filtered[norm_col] = 100 * (df_filtered[norm_col] - zero_pos + 0.5)
+    df_filtered[norm_col] = df_filtered[norm_col].clip(0, 100)
+    # Ordena pelo valor mais próximo de 50 (cruzamento)
+    df_filtered = df_filtered.loc[(df_filtered[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
     st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) mais próximo do cruzamento (50) no topo")
 
 # ----------------- Exibir Resultados -----------------
@@ -133,7 +132,6 @@ if df_filtered.empty:
         st.write("Dados disponíveis (sem filtros):")
         st.dataframe(df_valid, use_container_width=True)
 else:
-    # Mostra apenas Symbol, as colunas Stoch, e o MACD normalizado do timeframe escolhido
     if sort_tf:
         norm_col = f"MACD0lag_norm_{sort_tf}"
         main_cols = ["Symbol"] + [col for col in df_filtered.columns if "Stoch" in col]
@@ -144,7 +142,6 @@ else:
         st.subheader(f"✅ Pares Filtrados ({len(df_filtered)} pares)")
         st.dataframe(df_filtered, use_container_width=True)
 
-# Estatísticas
 if not df_valid.empty:
     st.sidebar.markdown("---")
     st.sidebar.markdown("📊 **Estatísticas**")

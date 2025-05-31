@@ -8,7 +8,6 @@ from trading_pairs22 import TRADING_PAIRS
 from indicators import calc_macd_zero_lag
 from pathlib import Path
 
-
 logging.basicConfig(level=logging.INFO)
 
 def _calc_stoch(df: pd.DataFrame, k: int, d: int, smooth_k: int, label_prefix: str):
@@ -44,6 +43,8 @@ def scan_pairs():
                     "15m Stoch 5-3-3": round(last_15m["15m_5_stoch_5"], 2),
                     "15m Stoch 14-3-3": round(last_15m["15m_14_stoch_14"], 2),
                     "15m_macd_zero_lag_hist": round(macd_hist.iloc[-1], 6),
+                    "15m_macd_zero_lag_hist_min": round(macd_hist.min(), 6),
+                    "15m_macd_zero_lag_hist_max": round(macd_hist.max(), 6),
                     "15m_Close": round(last_15m["Close"], 6)
                 })
 
@@ -57,6 +58,8 @@ def scan_pairs():
                     f"{tf} Stoch 5-3-3": round(last_row[f"{tf}_5_stoch_5"], 2),
                     f"{tf} Stoch 14-3-3": round(last_row[f"{tf}_14_stoch_14"], 2),
                     f"{tf}_macd_zero_lag_hist": round(macd_hist.iloc[-1], 6),
+                    f"{tf}_macd_zero_lag_hist_min": round(macd_hist.min(), 6),
+                    f"{tf}_macd_zero_lag_hist_max": round(macd_hist.max(), 6),
                     f"{tf}_Close": round(last_row["Close"], 6)
                 })
 
