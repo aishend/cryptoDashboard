@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(layout="wide")
 import pandas as pd
 import json
 import os
@@ -8,7 +9,6 @@ import numpy as np
 import sys
 import subprocess
 
-st.set_page_config(layout="wide")
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 def safe_run_update(script_path):
