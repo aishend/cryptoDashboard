@@ -1,10 +1,20 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import pandas as pd
 import pandas_ta as ta
 import json
 import logging
 from datetime import datetime
-from data_control.analysis import analyze_timeframe
-from trading_pairs.trading_pairs import TRADING_PAIRS
+try:
+    from data_control.analysis import analyze_timeframe
+except ImportError:
+    from analysis import analyze_timeframe
+try:
+    from trading_pairs.trading_pairs import TRADING_PAIRS
+except ImportError:
+    from trading_pairs import TRADING_PAIRS
 from pathlib import Path
 from indicators_set.indicators import calc_macd_zero_lag
 
@@ -70,7 +80,7 @@ def scan_pairs():
     return pd.DataFrame(valid_rows), failed_pairs
 
 def update_data():
-    print(f"🔄 Atualizando dados: {datetime.now()}")
+    print(f"[ATUALIZAÇÃO] Atualizando dados: {datetime.now()}")
     try:
         df_valid, failed = scan_pairs()
         json_path = Path(__file__).parent / "crypto_data.json"
@@ -82,11 +92,11 @@ def update_data():
         }
         with open(json_path, 'w') as f:
             json.dump(data, f, indent=2)
-        print(f"✅ Dados salvos: {len(df_valid)} pares válidos, {len(failed)} com erro")
+        print(f"[OK] Dados salvos: {len(df_valid)} pares válidos, {len(failed)} com erro")
         if not df_valid.empty:
-            print(f"📊 Colunas disponíveis: {list(df_valid.columns)}")
+            print(f"[INFO] Colunas disponíveis: {list(df_valid.columns)}")
     except Exception as e:
-        print(f"❌ Erro na atualização: {e}")
+        print(f"[ERRO] Erro na atualização: {e}")
 
 if __name__ == "__main__":
     update_data()

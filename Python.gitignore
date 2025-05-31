@@ -1,4 +1,4 @@
-#binance keys
+
 binance_client/config.py
 cache/*
 data_control/crypto_data.json
@@ -200,3 +200,4 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+/binance_client/config.py

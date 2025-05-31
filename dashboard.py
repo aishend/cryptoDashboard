@@ -5,6 +5,25 @@ import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 import numpy as np
+import sys
+import subprocess
+
+def safe_run_update(script_path):
+    try:
+        result = subprocess.run(
+            [sys.executable, script_path],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        if result.stdout:
+            st.info(result.stdout)
+    except subprocess.CalledProcessError as e:
+        st.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
+        raise st.stop()
+
+safe_run_update("trading_pairs/update_trading_pairs.py")
+safe_run_update("data_control/update_data.py")
 
 st.set_page_config(layout="wide")
 

@@ -1,5 +1,11 @@
-from data_control.cache import get_klines_with_cache  # Função com cache para obter velas
-from indicators_set.indicators import apply_technicals
+try:
+    from data_control.cache import get_klines_with_cache  # Função com cache para obter velas
+except ImportError:
+    from cache import get_klines_with_cache
+try:
+    from indicators_set.indicators import apply_technicals
+except ImportError:
+    from indicators import apply_technicals
 
 
 def analyze_timeframe(symbol, interval, lookback, prefix=""):
