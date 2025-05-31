@@ -79,7 +79,12 @@ st.sidebar.divider()
 # ----------------- Filtro para escolher timeframe do sort MACD zero lag -----------------
 macd_timeframes = [
     tf for tf in ["15m", "1h", "4h", "1d"]
-    if f"{tf}_macd_zero_lag_hist" in df_valid.columns and f"{tf}_macd_zero_lag_hist_min" in df_valid.columns and f"{tf}_macd_zero_lag_hist_max" in df_valid.columns and f"{tf}_Close" in df_valid.columns
+    if all(
+        f"{tf}_macd_zero_lag_hist" in df_valid.columns and
+        f"{tf}_macd_zero_lag_hist_min" in df_valid.columns and
+        f"{tf}_macd_zero_lag_hist_max" in df_valid.columns and
+        f"{tf}_Close" in df_valid.columns
+    )
 ]
 default_sort_tf = "4h" if "4h" in macd_timeframes else (macd_timeframes[0] if macd_timeframes else None)
 sort_tf = st.sidebar.selectbox(
@@ -113,14 +118,17 @@ if sort_tf:
     norm_col = f"MACD0lag_norm_{sort_tf}"
 
     # Normaliza cada par usando seu próprio min/max histórico
-    df_filtered[norm_col] = (
-        (df_filtered[hist_col] - df_filtered[min_col]) / (df_filtered[max_col] - df_filtered[min_col] + 1e-9)
-    )
+    range_hist = df_filtered[max_col] - df_filtered[min_col]
+    # Evita divisão por zero
+    range_hist = range_hist.replace(0, 1e-9)
+    df_filtered[norm_col] = (df_filtered[hist_col] - df_filtered[min_col]) / range_hist
+
     # Posição do zero no range
-    zero_pos = (0 - df_filtered[min_col]) / (df_filtered[max_col] - df_filtered[min_col] + 1e-9)
+    zero_pos = (-df_filtered[min_col]) / range_hist
     # Ajusta para que zero fique em 50
     df_filtered[norm_col] = 100 * (df_filtered[norm_col] - zero_pos + 0.5)
     df_filtered[norm_col] = df_filtered[norm_col].clip(0, 100)
+
     # Ordena pelo valor mais próximo de 50 (cruzamento)
     df_filtered = df_filtered.loc[(df_filtered[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
     st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) mais próximo do cruzamento (50) no topo")
