@@ -5,7 +5,7 @@ data_control/crypto_data.json
 PyCharmMiscProject.iml
 trading_pairs/trading_pairs.py
 trading_pairs/trading_pairs22.py
-__pycache__/*
+/__pycache__/*
 .idea/*
 
 # Byte-compiled / optimized / DLL files
