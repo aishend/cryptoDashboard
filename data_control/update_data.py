@@ -80,7 +80,7 @@ def scan_pairs():
     return pd.DataFrame(valid_rows), failed_pairs
 
 def update_data():
-    print(f"[ATUALIZAÇÃO] Atualizando dados: {datetime.now()}")
+
     try:
         df_valid, failed = scan_pairs()
         json_path = Path(__file__).parent / "crypto_data.json"
@@ -92,9 +92,6 @@ def update_data():
         }
         with open(json_path, 'w') as f:
             json.dump(data, f, indent=2)
-        print(f"[OK] Dados salvos: {len(df_valid)} pares válidos, {len(failed)} com erro")
-        if not df_valid.empty:
-            print(f"[INFO] Colunas disponíveis: {list(df_valid.columns)}")
     except Exception as e:
         print(f"[ERRO] Erro na atualização: {e}")
 

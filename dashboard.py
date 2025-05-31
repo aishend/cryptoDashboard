@@ -24,7 +24,7 @@ def safe_run_update(script_path):
         st.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
         raise st.stop()
 
-safe_run_update("trading_pairs/update_trading_pairs.py")
+# safe_run_update("trading_pairs/update_trading_pairs.py")
 safe_run_update("data_control/update_data.py")
 
 

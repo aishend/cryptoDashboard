@@ -22,7 +22,6 @@ if __name__ == "__main__":
     try:
         pairs = get_futures_pairs()
         write_pairs_to_file(pairs)
-        print(f"[OK] Arquivo trading_pairs.py atualizado com {len(pairs)} pares de futuros perpétuos.")
     except Exception as e:
         print(f"[ERRO] Erro ao atualizar trading_pairs22.py: {e}")
         sys.exit(1)
