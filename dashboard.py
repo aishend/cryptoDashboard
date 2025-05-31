@@ -9,7 +9,8 @@ import sys
 import subprocess
 
 st.set_page_config(layout="wide")
-
+st.title("📊 Dashboard Crypto Filtering")
+st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 def safe_run_update(script_path):
     try:
         result = subprocess.run(
@@ -27,12 +28,7 @@ def safe_run_update(script_path):
 # safe_run_update("trading_pairs/update_trading_pairs.py")
 safe_run_update("data_control/update_data.py")
 
-
-
 count = st_autorefresh(interval=300000, key="filecheck")
-
-st.title("📊 Dashboard Crypto Filtering")
-st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
 @st.cache_data(ttl=60)
 def load_data_from_file():
