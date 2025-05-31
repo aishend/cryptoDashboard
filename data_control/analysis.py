@@ -19,7 +19,6 @@ def analyze_timeframe(symbol, interval, lookback, prefix=""):
     df = apply_technicals(df, timeframe=interval)
     
     if df.empty:
-        print("DataFrame vazio após aplicar indicadores (dropna removeu tudo).")
         return df
     
     if prefix:
