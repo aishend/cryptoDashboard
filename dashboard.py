@@ -45,15 +45,14 @@ if st.sidebar.button("🔄 Recarregar Dados"):
     load_data_from_file.clear()
     st.rerun()
 
-# ----------------- Seleção de Timeframes -----------------
+# ----------------- Seleção de Timeframes para filtro Stochastic -----------------
 st.sidebar.header("Timeframes para Filtro")
-# Lista possível de timeframes (ajuste conforme os nomes das colunas do seu DataFrame)
 all_timeframes = []
 for tf in ["15m", "1h", "4h", "1d"]:
     if any(col.startswith(f"{tf} Stoch") for col in df_valid.columns):
         all_timeframes.append(tf)
 
-default_timeframes = [tf for tf in ["1h", "4h", "1d"] if tf in all_timeframes]
+default_timeframes = [tf for tf in ["1h", "4h"] if tf in all_timeframes]
 selected_timeframes = st.sidebar.multiselect(
     "Selecione os timeframes para aplicar os filtros:",
     options=all_timeframes,
@@ -79,7 +78,19 @@ else:
 
 st.sidebar.divider()
 
-# ----------------- Aplicar Filtros -----------------
+# ----------------- Filtro para escolher timeframe do sort MACD zero lag -----------------
+macd_timeframes = [
+    tf for tf in ["15m", "1h", "4h", "1d"]
+    if f"{tf}_macd_zero_lag_hist" in df_valid.columns and f"{tf}_Close" in df_valid.columns
+]
+default_sort_tf = "4h" if "4h" in macd_timeframes else (macd_timeframes[0] if macd_timeframes else None)
+sort_tf = st.sidebar.selectbox(
+    "Timeframe para ordenação MACD 0 lag normalizado:",
+    options=macd_timeframes,
+    index=macd_timeframes.index(default_sort_tf) if default_sort_tf else 0
+) if macd_timeframes else None
+
+# ----------------- Aplicar Filtros Stochastic -----------------
 df_filtered = df_valid.copy()
 
 # Pega as colunas dos timeframes selecionados
@@ -99,17 +110,15 @@ if enable_below and value_below is not None and selected_stoch_columns:
         df_filtered = df_filtered[df_filtered[col] <= value_below]
     st.sidebar.success(f"Filtro ativo: Todos os selecionados ≤ {value_below}")
 
-# ----------------- Ordenação pelo MACD zero lag -----------------
-# Ordena pelo MACD zero lag do timeframe selecionado mais "alto" (prioridade: 1d > 4h > 1h > 15m)
-macd_col = None
-for tf in ["1d", "4h", "1h", "15m"]:
-    if tf in selected_timeframes:
-        col_name = f"{tf}_macd_zero_lag_hist"
-        if col_name in df_filtered.columns:
-            macd_col = col_name
-            break
-if macd_col:
-    df_filtered = df_filtered.loc[df_filtered[macd_col].abs().sort_values().index].reset_index(drop=True)
+# ----------------- Ordenação e coluna final MACD zero lag normalizado -----------------
+if sort_tf:
+    hist_col = f"{sort_tf}_macd_zero_lag_hist"
+    close_col = f"{sort_tf}_Close"
+    norm_col = f"MACD0lag_norm_{sort_tf}"
+    df_filtered[norm_col] = df_filtered[hist_col] / df_filtered[close_col].abs()
+    # Ordena os pares (linhas) pelo valor absoluto do histograma normalizado
+    df_filtered = df_filtered.loc[df_filtered[norm_col].abs().sort_values().index].reset_index(drop=True)
+    st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) mais próximo de zero no topo")
 
 # ----------------- Exibir Resultados -----------------
 if df_filtered.empty:
@@ -118,8 +127,17 @@ if df_filtered.empty:
         st.write("Dados disponíveis (sem filtros):")
         st.dataframe(df_valid, use_container_width=True)
 else:
-    st.subheader(f"✅ Pares Filtrados ({len(df_filtered)} pares)")
-    st.table(df_filtered)
+    # Mostra apenas Symbol, as colunas Stoch, e o MACD normalizado do timeframe escolhido
+    if sort_tf:
+        norm_col = f"MACD0lag_norm_{sort_tf}"
+        # Seleciona apenas as colunas principais + a coluna do MACD normalizado
+        main_cols = ["Symbol"] + [col for col in df_filtered.columns if "Stoch" in col]
+        col_order = [c for c in main_cols if c in df_filtered.columns] + [norm_col]
+        st.subheader(f"✅ Pares Filtrados ({len(df_filtered)} pares)")
+        st.dataframe(df_filtered[col_order], use_container_width=True)
+    else:
+        st.subheader(f"✅ Pares Filtrados ({len(df_filtered)} pares)")
+        st.dataframe(df_filtered, use_container_width=True)
 
 # Estatísticas
 if not df_valid.empty:

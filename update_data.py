@@ -4,9 +4,10 @@ import json
 import logging
 from datetime import datetime
 from analysis import analyze_timeframe
-from trading_pairs22 import TRADING_PAIRS
+from trading_pairs import TRADING_PAIRS
 from indicators import calc_macd_zero_lag
 from pathlib import Path
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,7 +26,7 @@ def scan_pairs():
             df_15m = analyze_timeframe(symbol, "15m", "1 day ago UTC")
             df_1h = analyze_timeframe(symbol, "1h", "7 day ago UTC")
             df_4h = analyze_timeframe(symbol, "4h", "30 day ago UTC")
-            df_1d = analyze_timeframe(symbol, "1d", "180 day ago UTC")  # Novo: timeframe diário
+            df_1d = analyze_timeframe(symbol, "1d", "180 day ago UTC")
 
             if df_1h.empty or df_4h.empty or df_1d.empty:
                 failed_pairs.append(symbol)
@@ -33,35 +34,31 @@ def scan_pairs():
 
             result_data = {"Symbol": symbol}
 
+            # 15m
             if not df_15m.empty:
                 _calc_stoch(df_15m, 5, 3, 3, "15m_5")
                 _calc_stoch(df_15m, 14, 3, 3, "15m_14")
                 last_15m = df_15m.iloc[-1]
+                macd_line, signal_line, macd_hist = calc_macd_zero_lag(df_15m['Close'])
                 result_data.update({
                     "15m Stoch 5-3-3": round(last_15m["15m_5_stoch_5"], 2),
                     "15m Stoch 14-3-3": round(last_15m["15m_14_stoch_14"], 2),
+                    "15m_macd_zero_lag_hist": round(macd_hist.iloc[-1], 6),
+                    "15m_Close": round(last_15m["Close"], 6)
                 })
 
+            # 1h, 4h, 1d
             for df, tf in ((df_1h, "1h"), (df_4h, "4h"), (df_1d, "1d")):
                 _calc_stoch(df, 5, 3, 3, f"{tf}_5")
                 _calc_stoch(df, 14, 3, 3, f"{tf}_14")
-
-            last_1h = df_1h.iloc[-1]
-            last_4h = df_4h.iloc[-1]
-            last_1d = df_1d.iloc[-1]
-            result_data.update({
-                "1h Stoch 5-3-3": round(last_1h["1h_5_stoch_5"], 2),
-                "1h Stoch 14-3-3": round(last_1h["1h_14_stoch_14"], 2),
-                "4h Stoch 5-3-3": round(last_4h["4h_5_stoch_5"], 2),
-                "4h Stoch 14-3-3": round(last_4h["4h_14_stoch_14"], 2),
-                "1d Stoch 5-3-3": round(last_1d["1d_5_stoch_5"], 2),
-                "1d Stoch 14-3-3": round(last_1d["1d_14_stoch_14"], 2),
-            })
-
-            # Calcular e salvar o MACD zero lag histograma de cada timeframe
-            for tf, df in [("1h", df_1h), ("4h", df_4h), ("1d", df_1d)]:
+                last_row = df.iloc[-1]
                 macd_line, signal_line, macd_hist = calc_macd_zero_lag(df['Close'])
-                result_data[f"{tf}_macd_zero_lag_hist"] = round(macd_hist.iloc[-1], 6)
+                result_data.update({
+                    f"{tf} Stoch 5-3-3": round(last_row[f"{tf}_5_stoch_5"], 2),
+                    f"{tf} Stoch 14-3-3": round(last_row[f"{tf}_14_stoch_14"], 2),
+                    f"{tf}_macd_zero_lag_hist": round(macd_hist.iloc[-1], 6),
+                    f"{tf}_Close": round(last_row["Close"], 6)
+                })
 
             valid_rows.append(result_data)
         except Exception as exc:
