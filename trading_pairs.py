@@ -1,3 +1,0 @@
-TRADING_PAIRS = [
-    "btcusdt"
-]
