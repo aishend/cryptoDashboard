@@ -79,13 +79,14 @@ st.sidebar.divider()
 # ----------------- Filtro para escolher timeframe do sort MACD zero lag -----------------
 macd_timeframes = [
     tf for tf in ["15m", "1h", "4h", "1d"]
-    if all(
-        f"{tf}_macd_zero_lag_hist" in df_valid.columns and
-        f"{tf}_macd_zero_lag_hist_min" in df_valid.columns and
-        f"{tf}_macd_zero_lag_hist_max" in df_valid.columns and
+    if all([
+        f"{tf}_macd_zero_lag_hist" in df_valid.columns,
+        f"{tf}_macd_zero_lag_hist_min" in df_valid.columns,
+        f"{tf}_macd_zero_lag_hist_max" in df_valid.columns,
         f"{tf}_Close" in df_valid.columns
-    )
+    ])
 ]
+
 default_sort_tf = "4h" if "4h" in macd_timeframes else (macd_timeframes[0] if macd_timeframes else None)
 sort_tf = st.sidebar.selectbox(
     "Timeframe para ordenação MACD 0 lag normalizado:",
