@@ -120,26 +120,42 @@ if sort_tf:
 
     # Normaliza cada par usando seu próprio min/max histórico
     range_hist = df_filtered[max_col] - df_filtered[min_col]
-    # Evita divisão por zero
     range_hist = range_hist.replace(0, 1e-9)
     df_filtered[norm_col] = (df_filtered[hist_col] - df_filtered[min_col]) / range_hist
 
     # Posição do zero no range
     zero_pos = (-df_filtered[min_col]) / range_hist
-    # Ajusta para que zero fique em 50
     df_filtered[norm_col] = 100 * (df_filtered[norm_col] - zero_pos + 0.5)
     df_filtered[norm_col] = df_filtered[norm_col].clip(0, 100)
 
-    # Ordena pelo valor mais próximo de 50 (cruzamento)
-    df_filtered = df_filtered.loc[(df_filtered[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
-    st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) mais próximo do cruzamento (50) no topo")
+    # Ordena pelo valor ASCENDENTE (do menor para o maior)
+    df_filtered = df_filtered.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
+    st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) em ordem crescente (0→100)")
 
 # ----------------- Exibir Resultados -----------------
 if df_filtered.empty:
     st.warning("⚠️ Nenhum par atende aos filtros.")
     if not df_valid.empty:
-        st.write("Dados disponíveis (sem filtros):")
-        st.dataframe(df_valid, use_container_width=True)
+        # Também ordena os não filtrados
+        if sort_tf:
+            hist_col = f"{sort_tf}_macd_zero_lag_hist"
+            min_col = f"{sort_tf}_macd_zero_lag_hist_min"
+            max_col = f"{sort_tf}_macd_zero_lag_hist_max"
+            norm_col = f"MACD0lag_norm_{sort_tf}"
+            range_hist = df_valid[max_col] - df_valid[min_col]
+            range_hist = range_hist.replace(0, 1e-9)
+            df_valid[norm_col] = (df_valid[hist_col] - df_valid[min_col]) / range_hist
+            zero_pos = (-df_valid[min_col]) / range_hist
+            df_valid[norm_col] = 100 * (df_valid[norm_col] - zero_pos + 0.5)
+            df_valid[norm_col] = df_valid[norm_col].clip(0, 100)
+            df_valid = df_valid.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
+            main_cols = ["Symbol"] + [col for col in df_valid.columns if "Stoch" in col]
+            col_order = [c for c in main_cols if c in df_valid.columns] + [norm_col]
+            st.write("Dados disponíveis (sem filtros, ordenados):")
+            st.dataframe(df_valid[col_order], use_container_width=True)
+        else:
+            st.write("Dados disponíveis (sem filtros):")
+            st.dataframe(df_valid, use_container_width=True)
 else:
     if sort_tf:
         norm_col = f"MACD0lag_norm_{sort_tf}"
