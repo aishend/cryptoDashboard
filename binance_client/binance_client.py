@@ -1,9 +1,32 @@
+import os
 import nest_asyncio
 nest_asyncio.apply()
 # binance_client.py
 import pandas as pd
 from binance import Client, ThreadedWebsocketManager
-from binance_client.config import KEY, SECRET
+
+# Lógica para carregar KEY e SECRET de variáveis de ambiente ou do config.py
+KEY = os.environ.get('BINANCE_KEY')
+SECRET = os.environ.get('BINANCE_SECRET')
+if not KEY or not SECRET:
+    try:
+        from binance_client.config import KEY as FILE_KEY, SECRET as FILE_SECRET
+        KEY = FILE_KEY
+        SECRET = FILE_SECRET
+    except ImportError:
+        try:
+            from config import KEY as FILE_KEY, SECRET as FILE_SECRET
+            KEY = FILE_KEY
+            SECRET = FILE_SECRET
+        except ImportError:
+            config_path = os.path.join(os.path.dirname(__file__), 'config.py')
+            if not os.path.exists(config_path):
+                with open(config_path, 'w') as f:
+                    f.write('KEY = "COLOQUE_SUA_BINANCE_API_KEY_AQUI"\n')
+                    f.write('SECRET = "COLOQUE_SUA_BINANCE_API_SECRET_AQUI"\n')
+                print(f"Arquivo config.py criado em {config_path}. Coloque sua KEY e SECRET nele.")
+            raise ImportError(f'Você precisa definir as variáveis de ambiente BINANCE_KEY e BINANCE_SECRET ou preencher o arquivo {config_path} com KEY e SECRET.')
+
 import logging
 
 
@@ -137,3 +160,4 @@ def start_realtime_user_socket():
     conn_key = twm.start_futures_user_socket(callback=process_user_message)
     logging.info("Websocket de usuário iniciado")
     return twm, conn_key
+
