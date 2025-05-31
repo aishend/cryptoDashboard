@@ -1,5 +1,6 @@
-streamlit~=1.45.1
-pandas~=2.2.3
-numpy~=1.26.4
-pandas_ta~=0.3.14b0
-nest-asyncio~=1.6.0
+streamlit
+pandas
+numpy
+python-binance
+pandas_ta
+nest-asyncio
