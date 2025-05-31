@@ -85,6 +85,48 @@ def _calc_stoch(df: pd.DataFrame, k: int, d: int, smooth_k: int, label_prefix: s
     df[f"{label_prefix}_stoch_{k}"] = stoch.iloc[:, 0]
     return df
 
+
+import numpy as np
+
+
+def normalize_macd_histogram(hist_values):
+    """
+    Normaliza o histograma MACD para o intervalo [0, 100], com 50 representando o zero do histograma.
+    hist_values: array-like de valores do histograma MACD
+    Retorna: array numpy com valores normalizados entre 0 e 100
+    """
+    hist_values = np.array(hist_values, dtype=float)
+    hist_min = np.min(hist_values)
+    hist_max = np.max(hist_values)
+
+    # Se hist_min e hist_max forem iguais, retorna array de 50 (meio do range)
+    if hist_min == hist_max:
+        return np.full(hist_values.shape, 50, dtype=float)
+
+    # Normaliza para [0, 1]
+    norm = (hist_values - hist_min) / (hist_max - hist_min)
+
+    # Calcula a posição do zero no range original
+    zero_pos = (0 - hist_min) / (hist_max - hist_min)
+
+    # Ajusta para que zero_pos fique em 0.5 (50)
+    if zero_pos == 0:
+        a = 1
+        b = 0
+    else:
+        a = 0.5 / zero_pos
+        b = 0
+    norm_adjusted = a * norm + b
+
+    # Limita para [0, 1]
+    norm_adjusted = np.clip(norm_adjusted, 0, 1)
+
+    # Escala para [0, 100]
+    norm_scaled = norm_adjusted * 100
+
+    return norm_scaled
+
+
 # --------------------------------------------
 # 7) Função que aplica todos os indicadores ao DataFrame
 # --------------------------------------------

@@ -4,6 +4,7 @@ import json
 import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+import numpy as np
 
 st.set_page_config(layout="wide")
 
@@ -59,7 +60,7 @@ selected_timeframes = st.sidebar.multiselect(
     default=default_timeframes
 )
 
-# ----------------- Filtros Gerais -----------------
+# ----------------- Filtros Gerais Stochastic -----------------
 st.sidebar.header("🎛️ Filtros Stochastic")
 
 st.sidebar.subheader("📈 Filtro Geral - Todos Acima")
@@ -115,10 +116,15 @@ if sort_tf:
     hist_col = f"{sort_tf}_macd_zero_lag_hist"
     close_col = f"{sort_tf}_Close"
     norm_col = f"MACD0lag_norm_{sort_tf}"
-    df_filtered[norm_col] = df_filtered[hist_col] / df_filtered[close_col].abs()
-    # Ordena os pares (linhas) pelo valor absoluto do histograma normalizado
-    df_filtered = df_filtered.loc[df_filtered[norm_col].abs().sort_values().index].reset_index(drop=True)
-    st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) mais próximo de zero no topo")
+    # Normalização para [-1, 1] e depois para [0, 100] com 0 (cruzamento) = 50
+    hist_vals = df_filtered[hist_col].values
+    max_abs = np.max(np.abs(hist_vals)) if len(hist_vals) > 0 else 1
+    # Evita divisão por zero
+    norm_vals = 50 + 50 * (hist_vals / max_abs)
+    df_filtered[norm_col] = norm_vals
+    # Ordena os pares pelo valor mais próximo de 50 (cruzamento)
+    df_filtered = df_filtered.loc[(np.abs(df_filtered[norm_col] - 50)).sort_values().index].reset_index(drop=True)
+    st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) mais próximo do cruzamento (50) no topo")
 
 # ----------------- Exibir Resultados -----------------
 if df_filtered.empty:
@@ -130,7 +136,6 @@ else:
     # Mostra apenas Symbol, as colunas Stoch, e o MACD normalizado do timeframe escolhido
     if sort_tf:
         norm_col = f"MACD0lag_norm_{sort_tf}"
-        # Seleciona apenas as colunas principais + a coluna do MACD normalizado
         main_cols = ["Symbol"] + [col for col in df_filtered.columns if "Stoch" in col]
         col_order = [c for c in main_cols if c in df_filtered.columns] + [norm_col]
         st.subheader(f"✅ Pares Filtrados ({len(df_filtered)} pares)")
