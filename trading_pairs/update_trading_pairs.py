@@ -10,7 +10,7 @@ except ImportError:
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from binance_client.binance_client import get_futures_pairs
 
-def write_pairs_to_file(pairs, filename="trading_pairs.py"):
+def write_pairs_to_file(pairs, filename="trading_pairs/trading_pairs.py"):
     with open(filename, "w") as f:
         f.write("# Arquivo gerado automaticamente\n")
         f.write("TRADING_PAIRS = [\n")
