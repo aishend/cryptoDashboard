@@ -1,0 +1,34 @@
+{
+  "df_valid": [
+    {
+      "Symbol": "btcusdt",
+      "15m Stoch 5-3-3": 77.14,
+      "15m Stoch 14-3-3": 90.48,
+      "15m_macd_zero_lag_hist": -3.512625,
+      "15m_macd_zero_lag_hist_min": -60.921063,
+      "15m_macd_zero_lag_hist_max": 61.221937,
+      "15m_Close": 104235.6,
+      "1h Stoch 5-3-3": 94.63,
+      "1h Stoch 14-3-3": 85.44,
+      "1h_macd_zero_lag_hist": 83.19679,
+      "1h_macd_zero_lag_hist_min": -230.097911,
+      "1h_macd_zero_lag_hist_max": 191.593002,
+      "1h_Close": 104235.6,
+      "4h Stoch 5-3-3": 35.42,
+      "4h Stoch 14-3-3": 13.16,
+      "4h_macd_zero_lag_hist": 171.458044,
+      "4h_macd_zero_lag_hist_min": -543.049596,
+      "4h_macd_zero_lag_hist_max": 457.679764,
+      "4h_Close": 104235.5,
+      "1d Stoch 5-3-3": 9.94,
+      "1d Stoch 14-3-3": 25.57,
+      "1d_macd_zero_lag_hist": -542.890296,
+      "1d_macd_zero_lag_hist_min": -1133.744333,
+      "1d_macd_zero_lag_hist_max": 860.565381,
+      "1d_Close": 104235.5
+    }
+  ],
+  "failed": [],
+  "last_update": "2025-05-31T15:07:16.640115",
+  "total_pairs": 1
+}

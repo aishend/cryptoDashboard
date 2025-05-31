@@ -1,9 +1,10 @@
 #binance keys
-config.py
+binance_client/config.py
 cache/*
+data_control/crypto_data.json
 PyCharmMiscProject.iml
-trading_pairs.py
-trading_pairs22.py
+trading_pairs/trading_pairs.py
+trading_pairs/trading_pairs22.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

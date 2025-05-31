@@ -16,8 +16,8 @@ st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 @st.cache_data(ttl=60)
 def load_data_from_file():
     try:
-        if os.path.exists('crypto_data.json'):
-            with open('crypto_data.json', 'r') as f:
+        if os.path.exists('data_control/crypto_data.json'):
+            with open('data_control/crypto_data.json', 'r') as f:
                 data = json.load(f)
             df_valid = pd.DataFrame(data['df_valid'])
             failed = data['failed']
