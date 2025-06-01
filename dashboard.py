@@ -29,7 +29,10 @@ def safe_run_update(script_path):
         st.sidebar.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
         st.stop()
 
-safe_run_update("trading_pairs/update_trading_pairs.py")
+# Só executa o update dos trading pairs na primeira execução da sessão
+if "updated_pairs_on_start" not in st.session_state:
+    safe_run_update("trading_pairs/update_trading_pairs.py")
+    st.session_state["updated_pairs_on_start"] = True
 
 @st.cache_data(ttl=2)
 def load_data_from_file():
@@ -77,7 +80,6 @@ with st.sidebar:
 
     st.markdown("---")
 
-# ----------------- Filtros e controles na sidebar -----------------
     st.header("Timeframes para Filtro")
     all_timeframes = []
     for tf in ["15m", "1h", "4h", "1d"]:

@@ -89,7 +89,7 @@ def scan_pairs():
             'df_valid': valid_rows,
             'failed': failed_pairs,
             'last_update': datetime.now().isoformat(),
-            'total_pairs': total_pairs
+            'total_pairs': len(TRADING_PAIRS)
         }
         with open(json_path, 'w') as f:
             json.dump(data, f, indent=2)
