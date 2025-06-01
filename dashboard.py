@@ -10,7 +10,7 @@ import subprocess
 
 st.set_page_config(layout="wide")
 # Atualiza a cada 5 segundos para mostrar progresso em tempo real
-count = st_autorefresh(interval=5000, key="filecheck")
+st_autorefresh(interval=5000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
@@ -24,16 +24,10 @@ def safe_run_update(script_path):
             text=True
         )
         if result.stdout:
-            st.info(result.stdout)
+            st.sidebar.info(result.stdout)
     except subprocess.CalledProcessError as e:
-        st.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
+        st.sidebar.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
         st.stop()
-
-# --- Só executa os updates automáticos na primeira execução da sessão ---
-if "updated_on_start" not in st.session_state:
-    safe_run_update("trading_pairs/update_trading_pairs.py")
-    safe_run_update("data_control/update_data.py")
-    st.session_state["updated_on_start"] = True
 
 @st.cache_data(ttl=2)
 def load_data_from_file():
@@ -54,7 +48,7 @@ def load_data_from_file():
 
 df_valid, failed, last_update_time, total_pairs, file_exists = load_data_from_file()
 
-# ----------------- Filtros e controles na sidebar -----------------
+# ----------------- Barra de progresso e status -----------------
 with st.sidebar:
     if file_exists:
         st.success(f"✅ Dados carregados: {last_update_time.strftime('%H:%M:%S')}")
@@ -64,6 +58,24 @@ with st.sidebar:
     else:
         st.error("❌ Arquivo de dados não encontrado")
 
+    # PROGRESSO DINÂMICO
+    ready = len(df_valid)
+    if total_pairs:
+        progress = ready / total_pairs
+        st.progress(progress, text=f"Pares processados: {ready}/{total_pairs}")
+        st.caption(f"Pares processados: {ready}/{total_pairs}")
+    else:
+        st.caption(f"Pares processados: {ready}")
+
+    # Botão de atualização
+    if st.button("🔄 Recarregar Dados"):
+        safe_run_update("data_control/update_data.py")
+        load_data_from_file.clear()
+        st.rerun()
+
+    st.markdown("---")
+
+# ----------------- Filtros e controles na sidebar -----------------
     st.header("Timeframes para Filtro")
     all_timeframes = []
     for tf in ["15m", "1h", "4h", "1d"]:
@@ -93,7 +105,6 @@ with st.sidebar:
 
     st.divider()
 
-    # Filtro para escolher timeframe do sort MACD zero lag
     macd_timeframes = [
         tf for tf in ["15m", "1h", "4h", "1d"]
         if all([
@@ -109,18 +120,6 @@ with st.sidebar:
         options=macd_timeframes,
         index=macd_timeframes.index(default_sort_tf) if default_sort_tf else 0
     ) if macd_timeframes else None
-
-    # --- Progresso e botão "Recarregar Dados" no final ---
-    st.markdown("---")
-    if total_pairs:
-        st.info(f"Pares processados: {len(df_valid)}/{total_pairs}")
-        st.progress(len(df_valid) / total_pairs if total_pairs else 0)
-    else:
-        st.info(f"Pares processados: {len(df_valid)}")
-    if st.button("🔄 Recarregar Dados"):
-        safe_run_update("data_control/update_data.py")
-        load_data_from_file.clear()
-        st.rerun()
 
 # ----------------- Aplicar Filtros Stochastic -----------------
 df_filtered = df_valid.copy()
