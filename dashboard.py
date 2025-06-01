@@ -8,19 +8,15 @@ from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(layout="wide")
 st_autorefresh(interval=5000, key="filecheck")
-
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
-import streamlit as st
-import pandas as pd
-import json
-import os
-import time
-from datetime import datetime
-
 def load_data_from_file():
-    for _ in range(3):  # tenta até 3 vezes
+    """
+    Sempre retorna os últimos dados válidos do session_state se houver erro na leitura do JSON.
+    Só atualiza os dados se conseguir ler o JSON corretamente.
+    """
+    for _ in range(3):
         try:
             if os.path.exists('data_control/crypto_data.json'):
                 with open('data_control/crypto_data.json', 'r') as f:
@@ -29,7 +25,7 @@ def load_data_from_file():
                 failed = data.get('failed', [])
                 last_update = datetime.fromisoformat(data.get('last_update', datetime.now().isoformat()))
                 total_pairs = data.get('total_pairs', len(df_valid))
-                # Salva no session_state para fallback
+                # Atualiza o cache do session_state
                 st.session_state['last_df_valid'] = df_valid
                 st.session_state['last_failed'] = failed
                 st.session_state['last_last_update'] = last_update
@@ -37,10 +33,18 @@ def load_data_from_file():
                 st.session_state['last_file_exists'] = True
                 return df_valid, failed, last_update, total_pairs, True
             else:
-                st.session_state['last_file_exists'] = False
+                # Se nunca carregou, retorna vazio, senão mantém último válido
+                if 'last_file_exists' in st.session_state and st.session_state['last_file_exists']:
+                    return (
+                        st.session_state['last_df_valid'],
+                        st.session_state['last_failed'],
+                        st.session_state['last_last_update'],
+                        st.session_state['last_total_pairs'],
+                        True
+                    )
                 return pd.DataFrame(), [], datetime.now(), 0, False
-        except json.JSONDecodeError:
-            time.sleep(0.2)  # espera 200ms e tenta de novo
+        except Exception:
+            time.sleep(0.2)
     # Se não conseguiu ler, retorna os últimos dados válidos
     if 'last_file_exists' in st.session_state and st.session_state['last_file_exists']:
         return (
@@ -52,7 +56,6 @@ def load_data_from_file():
         )
     st.error("Arquivo de dados corrompido ou em atualização. Tente novamente em instantes.")
     return pd.DataFrame(), [], datetime.now(), 0, False
-
 
 df_valid, failed, last_update_time, total_pairs, file_exists = load_data_from_file()
 
