@@ -4,9 +4,6 @@ import json
 import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
-import numpy as np
-import sys
-import subprocess
 
 st.set_page_config(layout="wide")
 # Atualiza a cada 5 segundos para mostrar progresso em tempo real
@@ -14,25 +11,6 @@ st_autorefresh(interval=5000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
-
-def safe_run_update(script_path):
-    try:
-        result = subprocess.run(
-            [sys.executable, script_path],
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        if result.stdout:
-            st.sidebar.info(result.stdout)
-    except subprocess.CalledProcessError as e:
-        st.sidebar.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
-        st.stop()
-
-# Só executa o update dos trading pairs na primeira execução da sessão
-if "updated_pairs_on_start" not in st.session_state:
-    safe_run_update("trading_pairs/update_trading_pairs.py")
-    st.session_state["updated_pairs_on_start"] = True
 
 @st.cache_data(ttl=2)
 def load_data_from_file():
@@ -53,7 +31,7 @@ def load_data_from_file():
 
 df_valid, failed, last_update_time, total_pairs, file_exists = load_data_from_file()
 
-# ----------------- Barra de progresso e status -----------------
+# ----------- Sidebar: Barra de Progresso e Status ----------- #
 with st.sidebar:
     if file_exists:
         st.success(f"✅ Dados carregados: {last_update_time.strftime('%H:%M:%S')}")
@@ -74,7 +52,6 @@ with st.sidebar:
 
     # Botão de atualização
     if st.button("🔄 Recarregar Dados"):
-        safe_run_update("data_control/update_data.py")
         load_data_from_file.clear()
         st.rerun()
 
@@ -125,7 +102,7 @@ with st.sidebar:
         index=macd_timeframes.index(default_sort_tf) if default_sort_tf else 0
     ) if macd_timeframes else None
 
-# ----------------- Aplicar Filtros Stochastic -----------------
+# ----------- Aplicar Filtros Stochastic ----------- #
 df_filtered = df_valid.copy()
 selected_stoch_columns = []
 for tf in selected_timeframes:
@@ -141,7 +118,7 @@ if enable_below and value_below is not None and selected_stoch_columns:
         df_filtered = df_filtered[df_filtered[col] <= value_below]
     st.sidebar.success(f"Filtro ativo: Todos os selecionados ≤ {value_below}")
 
-# ----------------- Ordenação e coluna final MACD zero lag normalizado -----------------
+# ----------- Ordenação e coluna final MACD zero lag normalizado ----------- #
 if sort_tf:
     hist_col = f"{sort_tf}_macd_zero_lag_hist"
     min_col = f"{sort_tf}_macd_zero_lag_hist_min"
@@ -157,7 +134,7 @@ if sort_tf:
     df_filtered = df_filtered.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
     st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) em ordem crescente (0→100)")
 
-# ----------------- Exibir Resultados -----------------
+# ----------- Exibir Resultados ----------- #
 if df_filtered.empty:
     st.warning("⚠️ Nenhum par atende aos filtros.")
     if not df_valid.empty:
