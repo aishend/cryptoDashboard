@@ -8,7 +8,7 @@ data_control/crypto_data.json
 **/__pycache__/
 *.iml
 
-trading_pairs/trading_pairs.py
+# trading_pairs/trading_pairs.py
 trading_pairs/trading_pairs22.py
 
 # Byte-compiled / optimized / DLL files
