@@ -1,6 +1,6 @@
 
 binance_client/config.py
-data_control/cache/*
+data_control/cache/
 data_control/crypto_data.json
 # Ignorar arquivos do PyCharm
 # Ignore qualquer .idea e __pycache__ em qualquer nível
