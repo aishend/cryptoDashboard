@@ -7,21 +7,23 @@ import os
 VENV_PYTHON = "/home/leandro/cryptoDashboard/.venv/bin/python"
 DATA_CONTROL = "/home/leandro/cryptoDashboard/data_control"
 
-def run_update_pairs():
+def update_trading_pairs():
     print("Rodando update_trading_pairs.py")
-    subprocess.run([VENV_PYTHON, os.path.join(DATA_CONTROL, "update_trading_pairs.py")])
+    subprocess.run([VENV_PYTHON, f"{DATA_CONTROL}/update_trading_pairs.py"])
 
-def run_update_data():
+def update_data():
     print("Rodando update_data.py")
-    subprocess.run([VENV_PYTHON, os.path.join(DATA_CONTROL, "update_data.py")])
+    subprocess.run([VENV_PYTHON, f"{DATA_CONTROL}/update_data.py"])
 
-# No boot: roda update_trading_pairs e update_data
-run_update_pairs()
-run_update_data()
+# Roda update_trading_pairs.py a cada 24 horas (a partir do momento em que o script iniciar)
+schedule.every(24).hours.do(update_trading_pairs)
 
-# Agenda update_data.py a cada 30 minutos
-schedule.every(30).minutes.do(run_update_data)
+# Roda update_data.py a cada 30 minutos
+schedule.every(30).minutes.do(update_data)
+
+# (Opcional) Rode ambos no início
+update_trading_pairs()
+update_data()
 
 while True:
     schedule.run_pending()
-    time.sleep(10)
