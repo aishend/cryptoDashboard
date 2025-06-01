@@ -2,39 +2,39 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import time
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(layout="wide")
-# Atualiza a cada 5 segundos para mostrar progresso em tempo real
 st_autorefresh(interval=5000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
-@st.cache_data(ttl=2)
 def load_data_from_file():
-    try:
-        if os.path.exists('data_control/crypto_data.json'):
-            with open('data_control/crypto_data.json', 'r') as f:
-                data = json.load(f)
-            df_valid = pd.DataFrame(data['df_valid'])
-            failed = data.get('failed', [])
-            last_update = datetime.fromisoformat(data.get('last_update', datetime.now().isoformat()))
-            total_pairs = data.get('total_pairs', len(df_valid))
-            return df_valid, failed, last_update, total_pairs, True
-        else:
-            return pd.DataFrame(), [], datetime.now(), 0, False
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
-        return pd.DataFrame(), [], datetime.now(), 0, False
+    for _ in range(3):  # tenta até 3 vezes
+        try:
+            if os.path.exists('data_control/crypto_data.json'):
+                with open('data_control/crypto_data.json', 'r') as f:
+                    data = json.load(f)
+                df_valid = pd.DataFrame(data.get('df_valid', []))
+                failed = data.get('failed', [])
+                last_update = datetime.fromisoformat(data.get('last_update', datetime.now().isoformat()))
+                total_pairs = data.get('total_pairs', len(df_valid))
+                return df_valid, failed, last_update, total_pairs, True
+            else:
+                return pd.DataFrame(), [], datetime.now(), 0, False
+        except json.JSONDecodeError:
+            time.sleep(0.2)  # espera 200ms e tenta de novo
+    st.error("Arquivo de dados corrompido ou em atualização. Tente novamente em instantes.")
+    return pd.DataFrame(), [], datetime.now(), 0, False
 
 df_valid, failed, last_update_time, total_pairs, file_exists = load_data_from_file()
 
 # ----------- Sidebar: Barra de Progresso e Status ----------- #
 with st.sidebar:
     if file_exists:
-        st.success(f"✅ Dados carregados: {last_update_time.strftime('%H:%M:%S')}")
         time_diff = datetime.now() - last_update_time
         minutes_ago = int(time_diff.total_seconds() / 60)
         st.info(f"📅 Atualizado há {minutes_ago} minutos")
@@ -49,11 +49,6 @@ with st.sidebar:
         st.caption(f"Pares processados: {ready}/{total_pairs}")
     else:
         st.caption(f"Pares processados: {ready}")
-
-    # Botão de atualização
-    if st.button("🔄 Recarregar Dados"):
-        load_data_from_file.clear()
-        st.rerun()
 
     st.markdown("---")
 
@@ -118,7 +113,7 @@ if enable_below and value_below is not None and selected_stoch_columns:
         df_filtered = df_filtered[df_filtered[col] <= value_below]
     st.sidebar.success(f"Filtro ativo: Todos os selecionados ≤ {value_below}")
 
-# ----------- Ordenação e coluna final MACD zero lag normalizado ----------- #
+# ----------- Ordenação: mais próximo de 50 no topo ----------- #
 if sort_tf:
     hist_col = f"{sort_tf}_macd_zero_lag_hist"
     min_col = f"{sort_tf}_macd_zero_lag_hist_min"
@@ -131,8 +126,10 @@ if sort_tf:
     zero_pos = (-df_filtered[min_col]) / range_hist
     df_filtered[norm_col] = 100 * (df_filtered[norm_col] - zero_pos + 0.5)
     df_filtered[norm_col] = df_filtered[norm_col].clip(0, 100)
-    df_filtered = df_filtered.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
-    st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) em ordem crescente (0→100)")
+
+    # Ordenação: mais próximo de 50 no topo
+    df_filtered = df_filtered.loc[(df_filtered[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
+    st.sidebar.info(f"Ordenação: MACD normalizado mais próximo de 50 (cruzamento) no topo")
 
 # ----------- Exibir Resultados ----------- #
 if df_filtered.empty:
@@ -149,7 +146,8 @@ if df_filtered.empty:
             zero_pos = (-df_valid[min_col]) / range_hist
             df_valid[norm_col] = 100 * (df_valid[norm_col] - zero_pos + 0.5)
             df_valid[norm_col] = df_valid[norm_col].clip(0, 100)
-            df_valid = df_valid.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
+            # Ordenação: mais próximo de 50 no topo
+            df_valid = df_valid.loc[(df_valid[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
             main_cols = ["Symbol"] + [col for col in df_valid.columns if "Stoch" in col]
             col_order = [c for c in main_cols if c in df_valid.columns] + [norm_col]
             st.write("Dados disponíveis (sem filtros, ordenados):")

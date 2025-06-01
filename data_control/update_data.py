@@ -30,6 +30,14 @@ def _calc_stoch(df: pd.DataFrame, k: int, d: int, smooth_k: int, label_prefix: s
     df[f"{label_prefix}_stoch_{k}"] = stoch.iloc[:, 0]
     return df
 
+def safe_json_write(data, final_path):
+    temp_path = str(final_path) + ".tmp"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temp_path, final_path)
+
 def scan_pairs():
     valid_rows = []
     failed_pairs = []
@@ -84,15 +92,14 @@ def scan_pairs():
             logging.warning(f"Falha ao processar {symbol}: {exc}")
             failed_pairs.append(symbol)
 
-        # Salva incrementalmente a cada par processado
+        # Salva incrementalmente a cada par processado, de forma atômica
         data = {
             'df_valid': valid_rows,
             'failed': failed_pairs,
             'last_update': datetime.now().isoformat(),
             'total_pairs': len(TRADING_PAIRS)
         }
-        with open(json_path, 'w') as f:
-            json.dump(data, f, indent=2)
+        safe_json_write(data, json_path)
 
     return pd.DataFrame(valid_rows), failed_pairs
 
