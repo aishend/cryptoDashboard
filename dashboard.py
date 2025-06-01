@@ -29,6 +29,8 @@ def safe_run_update(script_path):
         st.sidebar.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
         st.stop()
 
+safe_run_update("trading_pairs/update_trading_pairs.py")
+
 @st.cache_data(ttl=2)
 def load_data_from_file():
     try:
