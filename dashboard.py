@@ -4,13 +4,33 @@ import json
 import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
-
+import subprocess
+import sys
 st.set_page_config(layout="wide")
 # Atualiza a cada 5 segundos para mostrar progresso em tempo real
 st_autorefresh(interval=5000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
+
+def safe_run_update(script_path):
+    try:
+        result = subprocess.run(
+            [sys.executable, script_path],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        if result.stdout:
+            st.sidebar.info(result.stdout)
+    except subprocess.CalledProcessError as e:
+        st.sidebar.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
+        st.stop()
+
+# Só executa o update dos trading pairs na primeira execução da sessão
+if "updated_pairs_on_start" not in st.session_state:
+    safe_run_update("trading_pairs/update_trading_pairs.py")
+    st.session_state["updated_pairs_on_start"] = True
 
 @st.cache_data(ttl=2)
 def load_data_from_file():
