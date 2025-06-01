@@ -6,17 +6,19 @@ from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(layout="wide")
+# Atualiza a cada 5 segundos para mostrar progresso em tempo real
 st_autorefresh(interval=5000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
+@st.cache_data(ttl=2)
 def load_data_from_file():
     try:
         if os.path.exists('data_control/crypto_data.json'):
             with open('data_control/crypto_data.json', 'r') as f:
                 data = json.load(f)
-            df_valid = pd.DataFrame(data.get('df_valid', []))
+            df_valid = pd.DataFrame(data['df_valid'])
             failed = data.get('failed', [])
             last_update = datetime.fromisoformat(data.get('last_update', datetime.now().isoformat()))
             total_pairs = data.get('total_pairs', len(df_valid))
@@ -100,13 +102,6 @@ with st.sidebar:
         index=macd_timeframes.index(default_sort_tf) if default_sort_tf else 0
     ) if macd_timeframes else None
 
-    # Escolha de ordenação
-    sort_mode = st.radio(
-        "Modo de ordenação dos pares:",
-        options=["Mais próximo de 50 (cruzamento)", "Valor absoluto crescente", "Valor absoluto decrescente"],
-        index=0
-    )
-
 # ----------- Aplicar Filtros Stochastic ----------- #
 df_filtered = df_valid.copy()
 selected_stoch_columns = []
@@ -136,17 +131,8 @@ if sort_tf:
     zero_pos = (-df_filtered[min_col]) / range_hist
     df_filtered[norm_col] = 100 * (df_filtered[norm_col] - zero_pos + 0.5)
     df_filtered[norm_col] = df_filtered[norm_col].clip(0, 100)
-
-    # Ordenação conforme escolha
-    if sort_mode == "Mais próximo de 50 (cruzamento)":
-        df_filtered = df_filtered.loc[(df_filtered[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
-        st.sidebar.info(f"Ordenação: MACD normalizado mais próximo do cruzamento (50) no topo")
-    elif sort_mode == "Valor absoluto crescente":
-        df_filtered = df_filtered.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
-        st.sidebar.info(f"Ordenação: MACD normalizado do menor para o maior")
-    else:
-        df_filtered = df_filtered.sort_values(by=norm_col, ascending=False).reset_index(drop=True)
-        st.sidebar.info(f"Ordenação: MACD normalizado do maior para o menor")
+    df_filtered = df_filtered.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
+    st.sidebar.info(f"Ordenação: MACD zero lag normalizado ({sort_tf}) em ordem crescente (0→100)")
 
 # ----------- Exibir Resultados ----------- #
 if df_filtered.empty:
@@ -163,13 +149,7 @@ if df_filtered.empty:
             zero_pos = (-df_valid[min_col]) / range_hist
             df_valid[norm_col] = 100 * (df_valid[norm_col] - zero_pos + 0.5)
             df_valid[norm_col] = df_valid[norm_col].clip(0, 100)
-            # Ordenação conforme escolha
-            if sort_mode == "Mais próximo de 50 (cruzamento)":
-                df_valid = df_valid.loc[(df_valid[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
-            elif sort_mode == "Valor absoluto crescente":
-                df_valid = df_valid.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
-            else:
-                df_valid = df_valid.sort_values(by=norm_col, ascending=False).reset_index(drop=True)
+            df_valid = df_valid.sort_values(by=norm_col, ascending=True).reset_index(drop=True)
             main_cols = ["Symbol"] + [col for col in df_valid.columns if "Stoch" in col]
             col_order = [c for c in main_cols if c in df_valid.columns] + [norm_col]
             st.write("Dados disponíveis (sem filtros, ordenados):")
