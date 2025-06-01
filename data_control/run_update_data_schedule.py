@@ -2,20 +2,25 @@
 import schedule
 import time
 import subprocess
-import sys
 import os
 
-def run_update():
-    venv_python = "/home/leandro/cryptoDashboard/.venv/bin/python"
-    script_path = "/home/leandro/cryptoDashboard/data_control/update_data.py"
-    print(f"Rodando update_data.py às {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    subprocess.run([venv_python, script_path])
+VENV_PYTHON = "/home/leandro/cryptoDashboard/.venv/bin/python"
+DATA_CONTROL = "/home/leandro/cryptoDashboard/data_control"
 
-# Agenda para rodar a cada 30 minutos
-schedule.every(30).minutes.do(run_update)
+def run_update_pairs():
+    print("Rodando update_trading_pairs.py")
+    subprocess.run([VENV_PYTHON, os.path.join(DATA_CONTROL, "update_trading_pairs.py")])
 
-# Rode uma vez no início, como no boot
-run_update()
+def run_update_data():
+    print("Rodando update_data.py")
+    subprocess.run([VENV_PYTHON, os.path.join(DATA_CONTROL, "update_data.py")])
+
+# No boot: roda update_trading_pairs e update_data
+run_update_pairs()
+run_update_data()
+
+# Agenda update_data.py a cada 30 minutos
+schedule.every(30).minutes.do(run_update_data)
 
 while True:
     schedule.run_pending()
