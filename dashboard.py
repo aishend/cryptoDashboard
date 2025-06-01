@@ -9,26 +9,33 @@ import sys
 import subprocess
 
 st.set_page_config(layout="wide")
-count = st_autorefresh(interval=300000, key="filecheck")
+# Atualiza a cada 5 segundos para mostrar progresso em tempo real
+count = st_autorefresh(interval=5000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
-def run_update_data():
+def safe_run_update(script_path):
     try:
         result = subprocess.run(
-            [sys.executable, "data_control/update_data.py"],
+            [sys.executable, script_path],
             check=True,
             capture_output=True,
             text=True
         )
         if result.stdout:
-            st.sidebar.info(result.stdout)
+            st.info(result.stdout)
     except subprocess.CalledProcessError as e:
-        st.sidebar.error(f"Erro ao rodar update_data.py:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
+        st.error(f"Erro ao rodar {script_path}:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
         st.stop()
 
-@st.cache_data(ttl=60)
+# --- Só executa os updates automáticos na primeira execução da sessão ---
+if "updated_on_start" not in st.session_state:
+    safe_run_update("trading_pairs/update_trading_pairs.py")
+    safe_run_update("data_control/update_data.py")
+    st.session_state["updated_on_start"] = True
+
+@st.cache_data(ttl=2)
 def load_data_from_file():
     try:
         if os.path.exists('data_control/crypto_data.json'):
@@ -36,7 +43,7 @@ def load_data_from_file():
                 data = json.load(f)
             df_valid = pd.DataFrame(data['df_valid'])
             failed = data.get('failed', [])
-            last_update = datetime.fromisoformat(data['last_update'])
+            last_update = datetime.fromisoformat(data.get('last_update', datetime.now().isoformat()))
             total_pairs = data.get('total_pairs', len(df_valid))
             return df_valid, failed, last_update, total_pairs, True
         else:
@@ -103,15 +110,15 @@ with st.sidebar:
         index=macd_timeframes.index(default_sort_tf) if default_sort_tf else 0
     ) if macd_timeframes else None
 
+    # --- Progresso e botão "Recarregar Dados" no final ---
     st.markdown("---")
-    # Posição final: botão e contador de progresso
     if total_pairs:
         st.info(f"Pares processados: {len(df_valid)}/{total_pairs}")
         st.progress(len(df_valid) / total_pairs if total_pairs else 0)
     else:
         st.info(f"Pares processados: {len(df_valid)}")
     if st.button("🔄 Recarregar Dados"):
-        run_update_data()
+        safe_run_update("data_control/update_data.py")
         load_data_from_file.clear()
         st.rerun()
 
