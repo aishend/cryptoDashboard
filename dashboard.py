@@ -5,15 +5,30 @@ import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 import numpy as np
+import sys
+import subprocess
 
 st.set_page_config(layout="wide")
-# Atualiza a cada 5 segundos para mostrar progresso
-count = st_autorefresh(interval=5000, key="filecheck")
+count = st_autorefresh(interval=300000, key="filecheck")
 
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
-@st.cache_data(ttl=2)
+def run_update_data():
+    try:
+        result = subprocess.run(
+            [sys.executable, "data_control/update_data.py"],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        if result.stdout:
+            st.sidebar.info(result.stdout)
+    except subprocess.CalledProcessError as e:
+        st.sidebar.error(f"Erro ao rodar update_data.py:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}")
+        st.stop()
+
+@st.cache_data(ttl=60)
 def load_data_from_file():
     try:
         if os.path.exists('data_control/crypto_data.json'):
@@ -21,86 +36,84 @@ def load_data_from_file():
                 data = json.load(f)
             df_valid = pd.DataFrame(data['df_valid'])
             failed = data.get('failed', [])
-            last_update = datetime.fromisoformat(data.get('last_update', datetime.now().isoformat()))
-            total_pairs = data.get('total_pairs', None)
+            last_update = datetime.fromisoformat(data['last_update'])
+            total_pairs = data.get('total_pairs', len(df_valid))
             return df_valid, failed, last_update, total_pairs, True
         else:
-            return pd.DataFrame(), [], datetime.now(), None, False
+            return pd.DataFrame(), [], datetime.now(), 0, False
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
-        return pd.DataFrame(), [], datetime.now(), None, False
+        return pd.DataFrame(), [], datetime.now(), 0, False
 
 df_valid, failed, last_update_time, total_pairs, file_exists = load_data_from_file()
 
-# Progresso
-num_ready = len(df_valid)
-if total_pairs:
-    st.sidebar.progress(num_ready / total_pairs)
-    st.sidebar.info(f"Pares processados: {num_ready}/{total_pairs}")
-else:
-    st.sidebar.info(f"Pares processados: {num_ready}")
+# ----------------- Filtros e controles na sidebar -----------------
+with st.sidebar:
+    if file_exists:
+        st.success(f"✅ Dados carregados: {last_update_time.strftime('%H:%M:%S')}")
+        time_diff = datetime.now() - last_update_time
+        minutes_ago = int(time_diff.total_seconds() / 60)
+        st.info(f"📅 Atualizado há {minutes_ago} minutos")
+    else:
+        st.error("❌ Arquivo de dados não encontrado")
 
-if file_exists:
-    st.sidebar.success(f"✅ Dados carregados: {last_update_time.strftime('%H:%M:%S')}")
-    time_diff = datetime.now() - last_update_time
-    minutes_ago = int(time_diff.total_seconds() / 60)
-    st.sidebar.info(f"📅 Atualizado há {minutes_ago} minutos")
-else:
-    st.sidebar.error("❌ Arquivo de dados não encontrado")
+    st.header("Timeframes para Filtro")
+    all_timeframes = []
+    for tf in ["15m", "1h", "4h", "1d"]:
+        if any(col.startswith(f"{tf} Stoch") for col in df_valid.columns):
+            all_timeframes.append(tf)
+    default_timeframes = [tf for tf in ["1h", "4h"] if tf in all_timeframes]
+    selected_timeframes = st.multiselect(
+        "Selecione os timeframes para aplicar os filtros:",
+        options=all_timeframes,
+        default=default_timeframes
+    )
 
-if st.sidebar.button("🔄 Recarregar Dados"):
-    load_data_from_file.clear()
-    st.rerun()
+    st.header("🎛️ Filtros Stochastic")
+    st.subheader("📈 Filtro Geral - Todos Acima")
+    enable_above = st.checkbox("Ativar filtro 'Todos acima'", key="enable_above")
+    if enable_above:
+        value_above = st.slider("Valor mínimo para os selecionados", 0, 100, 70, key="all_above")
+    else:
+        value_above = None
 
-# ----------------- Seleção de Timeframes para filtro Stochastic -----------------
-st.sidebar.header("Timeframes para Filtro")
-all_timeframes = []
-for tf in ["15m", "1h", "4h", "1d"]:
-    if any(col.startswith(f"{tf} Stoch") for col in df_valid.columns):
-        all_timeframes.append(tf)
+    st.subheader("📉 Filtro Geral - Todos Abaixo")
+    enable_below = st.checkbox("Ativar filtro 'Todos abaixo'", key="enable_below")
+    if enable_below:
+        value_below = st.slider("Valor máximo para os selecionados", 0, 100, 30, key="all_below")
+    else:
+        value_below = None
 
-default_timeframes = [tf for tf in ["1h", "4h"] if tf in all_timeframes]
-selected_timeframes = st.sidebar.multiselect(
-    "Selecione os timeframes para aplicar os filtros:",
-    options=all_timeframes,
-    default=default_timeframes
-)
+    st.divider()
 
-# ----------------- Filtros Gerais Stochastic -----------------
-st.sidebar.header("🎛️ Filtros Stochastic")
-st.sidebar.subheader("📈 Filtro Geral - Todos Acima")
-enable_above = st.sidebar.checkbox("Ativar filtro 'Todos acima'", key="enable_above")
-if enable_above:
-    value_above = st.sidebar.slider("Valor mínimo para os selecionados", 0, 100, 70, key="all_above")
-else:
-    value_above = None
+    # Filtro para escolher timeframe do sort MACD zero lag
+    macd_timeframes = [
+        tf for tf in ["15m", "1h", "4h", "1d"]
+        if all([
+            f"{tf}_macd_zero_lag_hist" in df_valid.columns,
+            f"{tf}_macd_zero_lag_hist_min" in df_valid.columns,
+            f"{tf}_macd_zero_lag_hist_max" in df_valid.columns,
+            f"{tf}_Close" in df_valid.columns
+        ])
+    ]
+    default_sort_tf = "4h" if "4h" in macd_timeframes else (macd_timeframes[0] if macd_timeframes else None)
+    sort_tf = st.selectbox(
+        "Timeframe para ordenação MACD 0 lag normalizado:",
+        options=macd_timeframes,
+        index=macd_timeframes.index(default_sort_tf) if default_sort_tf else 0
+    ) if macd_timeframes else None
 
-st.sidebar.subheader("📉 Filtro Geral - Todos Abaixo")
-enable_below = st.sidebar.checkbox("Ativar filtro 'Todos abaixo'", key="enable_below")
-if enable_below:
-    value_below = st.sidebar.slider("Valor máximo para os selecionados", 0, 100, 30, key="all_below")
-else:
-    value_below = None
-
-st.sidebar.divider()
-
-# ----------------- Filtro para escolher timeframe do sort MACD zero lag -----------------
-macd_timeframes = [
-    tf for tf in ["15m", "1h", "4h", "1d"]
-    if all([
-        f"{tf}_macd_zero_lag_hist" in df_valid.columns,
-        f"{tf}_macd_zero_lag_hist_min" in df_valid.columns,
-        f"{tf}_macd_zero_lag_hist_max" in df_valid.columns,
-        f"{tf}_Close" in df_valid.columns
-    ])
-]
-
-default_sort_tf = "4h" if "4h" in macd_timeframes else (macd_timeframes[0] if macd_timeframes else None)
-sort_tf = st.sidebar.selectbox(
-    "Timeframe para ordenação MACD 0 lag normalizado:",
-    options=macd_timeframes,
-    index=macd_timeframes.index(default_sort_tf) if default_sort_tf else 0
-) if macd_timeframes else None
+    st.markdown("---")
+    # Posição final: botão e contador de progresso
+    if total_pairs:
+        st.info(f"Pares processados: {len(df_valid)}/{total_pairs}")
+        st.progress(len(df_valid) / total_pairs if total_pairs else 0)
+    else:
+        st.info(f"Pares processados: {len(df_valid)}")
+    if st.button("🔄 Recarregar Dados"):
+        run_update_data()
+        load_data_from_file.clear()
+        st.rerun()
 
 # ----------------- Aplicar Filtros Stochastic -----------------
 df_filtered = df_valid.copy()
