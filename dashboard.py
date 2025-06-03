@@ -22,7 +22,6 @@ def load_data_from_file():
                 failed = data.get('failed', [])
                 last_update = datetime.fromisoformat(data.get('last_update', datetime.now().isoformat()))
                 total_pairs = data.get('total_pairs', len(df_valid))
-                # Só atualiza se o novo DataFrame for maior ou igual ao anterior
                 last_len = st.session_state.get('last_len', 0)
                 if len(df_valid) >= last_len:
                     st.session_state['last_df_valid'] = df_valid
@@ -31,7 +30,6 @@ def load_data_from_file():
                     st.session_state['last_total_pairs'] = total_pairs
                     st.session_state['last_file_exists'] = True
                     st.session_state['last_len'] = len(df_valid)
-                # Retorna sempre o último DataFrame completo
                 return (
                     st.session_state.get('last_df_valid', pd.DataFrame()),
                     st.session_state.get('last_failed', []),
@@ -43,7 +41,6 @@ def load_data_from_file():
                 return pd.DataFrame(), [], datetime.now(), 0, False
         except Exception:
             time.sleep(0.2)
-    # Se não conseguiu ler, retorna os últimos dados válidos
     return (
         st.session_state.get('last_df_valid', pd.DataFrame()),
         st.session_state.get('last_failed', []),
@@ -63,7 +60,6 @@ with st.sidebar:
     else:
         st.error("❌ Arquivo de dados não encontrado")
 
-    # PROGRESSO DINÂMICO
     ready = len(df_valid)
     if total_pairs:
         progress = ready / total_pairs
@@ -108,6 +104,13 @@ with st.sidebar:
         0, 100, (30, 70), key="extremos_range"
     )
 
+    st.subheader("🟩 Filtro Intervalos Personalizados (meio)")
+    enable_intervalo = st.checkbox("Ativar filtro de intervalo personalizado", key="enable_intervalo")
+    intervalo_min, intervalo_max = st.slider(
+        "Defina o intervalo central (mínimo e máximo)",
+        0, 100, (30, 70), key="intervalo_range"
+    )
+
     st.divider()
 
     macd_timeframes = [
@@ -149,6 +152,13 @@ if enable_extremos and selected_stoch_columns:
     df_filtered = df_filtered[mask_extremos]
     st.sidebar.success(f"Filtro ativo: Todos os selecionados ≤ {extremos_min} ou ≥ {extremos_max} (extremos)")
 
+if enable_intervalo and selected_stoch_columns:
+    mask_intervalo = df_filtered[selected_stoch_columns].apply(
+        lambda row: all((intervalo_min <= v <= intervalo_max) for v in row), axis=1
+    )
+    df_filtered = df_filtered[mask_intervalo]
+    st.sidebar.success(f"Filtro ativo: Todos os selecionados entre {intervalo_min} e {intervalo_max} (intervalo personalizado)")
+
 # ----------- Ordenação: mais próximo de 50 no topo ----------- #
 if sort_tf:
     hist_col = f"{sort_tf}_macd_zero_lag_hist"
@@ -182,7 +192,6 @@ if df_filtered.empty:
             zero_pos = (-df_valid[min_col]) / range_hist
             df_valid[norm_col] = 100 * (df_valid[norm_col] - zero_pos + 0.5)
             df_valid[norm_col] = df_valid[norm_col].clip(0, 100)
-            # Ordenação: mais próximo de 50 no topo
             df_valid = df_valid.loc[(df_valid[norm_col] - 50).abs().sort_values().index].reset_index(drop=True)
             main_cols = ["Symbol"] + [col for col in df_valid.columns if "Stoch" in col]
             col_order = [c for c in main_cols if c in df_valid.columns] + [norm_col]
