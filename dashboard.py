@@ -8,11 +8,11 @@ from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(layout="wide")
 st_autorefresh(interval=5000, key="filecheck")
+
 st.title("📊 Dashboard Crypto Filtering")
 st.markdown("Dev by aishend - Stochastic Version 5-3-3 & 14-3-3 ☕️")
 
 def load_data_from_file():
-    # Tenta ler o JSON até 3 vezes
     for _ in range(3):
         try:
             if os.path.exists('data_control/crypto_data.json'):
@@ -101,6 +101,9 @@ with st.sidebar:
     else:
         value_below = None
 
+    st.subheader("🎯 Filtro Extremos (≤30 ou ≥70)")
+    enable_extremos = st.checkbox("Ativar filtro de extremos", key="enable_extremos")
+
     st.divider()
 
     macd_timeframes = [
@@ -134,6 +137,13 @@ if enable_below and value_below is not None and selected_stoch_columns:
     for col in selected_stoch_columns:
         df_filtered = df_filtered[df_filtered[col] <= value_below]
     st.sidebar.success(f"Filtro ativo: Todos os selecionados ≤ {value_below}")
+
+if enable_extremos and selected_stoch_columns:
+    mask_extremos = df_filtered[selected_stoch_columns].apply(
+        lambda row: all((v <= 30 or v >= 70) for v in row), axis=1
+    )
+    df_filtered = df_filtered[mask_extremos]
+    st.sidebar.success("Filtro ativo: Todos os selecionados ≤ 30 ou ≥ 70 (extremos)")
 
 # ----------- Ordenação: mais próximo de 50 no topo ----------- #
 if sort_tf:
