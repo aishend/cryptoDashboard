@@ -101,8 +101,12 @@ with st.sidebar:
     else:
         value_below = None
 
-    st.subheader("🎯 Filtro Extremos (≤30 ou ≥70)")
+    st.subheader("🎯 Filtro Extremos (abaixo/acima)")
     enable_extremos = st.checkbox("Ativar filtro de extremos", key="enable_extremos")
+    extremos_min, extremos_max = st.slider(
+        "Defina os valores dos extremos (mínimo e máximo)",
+        0, 100, (30, 70), key="extremos_range"
+    )
 
     st.divider()
 
@@ -140,10 +144,10 @@ if enable_below and value_below is not None and selected_stoch_columns:
 
 if enable_extremos and selected_stoch_columns:
     mask_extremos = df_filtered[selected_stoch_columns].apply(
-        lambda row: all((v <= 30 or v >= 70) for v in row), axis=1
+        lambda row: all((v <= extremos_min or v >= extremos_max) for v in row), axis=1
     )
     df_filtered = df_filtered[mask_extremos]
-    st.sidebar.success("Filtro ativo: Todos os selecionados ≤ 30 ou ≥ 70 (extremos)")
+    st.sidebar.success(f"Filtro ativo: Todos os selecionados ≤ {extremos_min} ou ≥ {extremos_max} (extremos)")
 
 # ----------- Ordenação: mais próximo de 50 no topo ----------- #
 if sort_tf:
