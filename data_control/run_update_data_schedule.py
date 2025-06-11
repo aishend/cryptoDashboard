@@ -19,7 +19,7 @@ def update_data():
 schedule.every(24).hours.do(update_trading_pairs)
 
 # Roda update_data.py a cada 30 minutos
-schedule.every(30).minutes.do(update_data)
+schedule.every(15).minutes.do(update_data)
 
 # (Opcional) Rode ambos no início
 update_trading_pairs()
